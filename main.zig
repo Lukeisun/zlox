@@ -83,8 +83,8 @@ const Lexer = struct {
         switch (c) {
             '{' => try self.addToken(TokenType.LEFT_BRACE),
             '}' => try self.addToken(TokenType.RIGHT_BRACE),
-            '(' => try self.addToken(TokenType.LEFT_BRACE),
-            ')' => try self.addToken(TokenType.RIGHT_BRACE),
+            '(' => try self.addToken(TokenType.LEFT_PAREN),
+            ')' => try self.addToken(TokenType.RIGHT_PAREN),
             ',' => try self.addToken(TokenType.COMMA),
             '.' => try self.addToken(TokenType.DOT),
             '-' => try self.addToken(TokenType.MINUS),
@@ -92,16 +92,16 @@ const Lexer = struct {
             ';' => try self.addToken(TokenType.SEMICOLON),
             '*' => try self.addToken(TokenType.STAR),
             '!' => {
-                if (self.match('=')) self.addToken(TokenType.BANG) else self.addToken(TokenType.BANG);
+                try if (self.match('=')) self.addToken(TokenType.BANG) else self.addToken(TokenType.BANG);
             },
             '=' => {
-                if (self.match('=')) self.addToken(TokenType.EQUAL_EQUAL) else self.addToken(TokenType.EQUAL);
+                try if (self.match('=')) self.addToken(TokenType.EQUAL_EQUAL) else self.addToken(TokenType.EQUAL);
             },
             '>' => {
-                if (self.match('=')) self.addToken(TokenType.GREATER_EQUAL) else self.addToken(TokenType.GREATER);
+                try if (self.match('=')) self.addToken(TokenType.GREATER_EQUAL) else self.addToken(TokenType.GREATER);
             },
             '<' => {
-                if (self.match('=')) self.addToken(TokenType.LESS_EQUAL) else self.addToken(TokenType.LESS);
+                try if (self.match('=')) self.addToken(TokenType.LESS_EQUAL) else self.addToken(TokenType.LESS);
             },
             '/' => {
                 if (self.match('/')) {
@@ -109,9 +109,11 @@ const Lexer = struct {
                         self.current += 1;
                     }
                 } else {
-                    self.addToken(TokenType.SLASH);
+                    try self.addToken(TokenType.SLASH);
                 }
             },
+            ' ', '\r', '\t' => {},
+            '\n' => self.line += 1,
             // '' => {IDENTIFIER},
             // '' => {STRING},
             // '' => {NUMBER},
@@ -144,10 +146,10 @@ const Lexer = struct {
         // I'm not quite sure if this is right
         // it seems to be, in the acii table 0 is \0
         if (self.outOfBounds()) return 0;
-        return self.current;
+        return self.source[self.current];
     }
     pub fn match(self: *Lexer, expected: u8) bool {
-        if (self.outOfBounds or
+        if (self.outOfBounds() or
             self.source[self.current] != expected)
         {
             return false;
