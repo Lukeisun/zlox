@@ -46,6 +46,7 @@ const TokenType = enum(u8) {
 };
 const LexingError = error{
     UnknownCharacter,
+    UnterminatedString,
 };
 const Error = struct {
     line: u32 = 0,
@@ -55,18 +56,26 @@ const Error = struct {
         std.debug.print("[line: {d}] Error {s}: {s}\n", .{ self.line, self.where, self.message });
     }
 };
+pub const Literal = union(enum) { string: []const u8, null };
 const Token = struct {
     type: TokenType,
     lexeme: []const u8,
-    line: u8,
+    line: u16,
+    literal: Literal,
 
     pub fn print(self: Token) !void {
-        const stdout = std.io.getStdOut().writer();
-        try stdout.print("{s}: {s} - Line: {d}\n", .{ @tagName(self.type), self.lexeme, self.line });
+        // const stdout = std.io.getStdOut().writer();
+        std.debug.print("{s} - Line {d}:\n\tLexeme: {s}\n\tLiteral: ", .{ @tagName(self.type), self.line, self.lexeme });
+        switch (self.literal) {
+            .string => std.debug.print("{s}", .{self.literal.string}),
+            .null => std.debug.print("{?}", .{self.literal.null}),
+        }
+        std.debug.print("\n", .{});
+        // try stdout.print("{s}: Lexeme: {s} Literal: {?} - Line: {d}\n", .{ @tagName(self.type), self.lexeme, self.literal, self.line });
     }
 };
 const Lexer = struct {
-    line: u8,
+    line: u16,
     start: u32,
     current: u32,
     tokens: *std.ArrayList(Token),
@@ -112,6 +121,7 @@ const Lexer = struct {
                     try self.addToken(TokenType.SLASH);
                 }
             },
+            '"' => try self.string(),
             ' ', '\r', '\t' => {},
             '\n' => self.line += 1,
             // '' => {IDENTIFIER},
@@ -137,16 +147,33 @@ const Lexer = struct {
             else => return LexingError.UnknownCharacter,
         }
     }
+    pub fn addTokenWithLiteral(self: *Lexer, token_type: TokenType, literal: Literal) !void {
+        const lexeme = if (self.outOfBounds()) "" else self.source[self.start..self.current];
+        // std.debug.print("{s}", .{lexeme});
+        try self.tokens.append(.{ .type = token_type, .line = self.line, .lexeme = lexeme, .literal = literal });
+    }
     pub fn addToken(self: *Lexer, token_type: TokenType) !void {
         const lexeme = if (self.outOfBounds()) "" else self.source[self.start..self.current];
         // std.debug.print("{s}", .{lexeme});
-        try self.tokens.append(.{ .type = token_type, .line = self.line, .lexeme = lexeme });
+        try self.tokens.append(.{ .type = token_type, .line = self.line, .lexeme = lexeme, .literal = Literal.null });
     }
     pub fn peek(self: *Lexer) u8 {
         // I'm not quite sure if this is right
         // it seems to be, in the acii table 0 is \0
         if (self.outOfBounds()) return 0;
         return self.source[self.current];
+    }
+    pub fn string(self: *Lexer) !void {
+        while (self.peek() != '"' and !self.outOfBounds()) {
+            if (self.peek() == '\n') self.line += 1;
+            self.current += 1;
+        }
+        if (self.outOfBounds()) {
+            return LexingError.UnterminatedString;
+        }
+        self.current += 1;
+        const literal = Literal{ .string = self.source[self.start + 1 .. self.current - 1] };
+        try self.addTokenWithLiteral(TokenType.STRING, literal);
     }
     pub fn match(self: *Lexer, expected: u8) bool {
         if (self.outOfBounds() or
@@ -167,6 +194,10 @@ pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(Toke
         lexer.eatToken() catch |err| {
             switch (err) {
                 LexingError.UnknownCharacter => {
+                    const lex_error = Error{ .line = lexer.line, .where = "", .message = @errorName(err) };
+                    lex_error.report();
+                },
+                LexingError.UnterminatedString => {
                     const lex_error = Error{ .line = lexer.line, .where = "", .message = @errorName(err) };
                     lex_error.report();
                 },
