@@ -192,17 +192,8 @@ pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(Toke
     while (!lexer.outOfBounds()) {
         lexer.start = lexer.current;
         lexer.eatToken() catch |err| {
-            switch (err) {
-                LexingError.UnknownCharacter => {
-                    const lex_error = Error{ .line = lexer.line, .where = "", .message = @errorName(err) };
-                    lex_error.report();
-                },
-                LexingError.UnterminatedString => {
-                    const lex_error = Error{ .line = lexer.line, .where = "", .message = @errorName(err) };
-                    lex_error.report();
-                },
-                else => unreachable,
-            }
+            const lex_error = Error{ .line = lexer.line, .where = "", .message = @errorName(err) };
+            lex_error.report();
         };
     }
     std.debug.print("Ate all tokens 😋\n", .{});
