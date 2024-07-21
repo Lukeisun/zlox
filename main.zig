@@ -44,26 +44,25 @@ pub fn main() !void {
             try stderr.writeAll("Usage: zlox [script]\n");
         },
     }
-    const expression = try expr.Binary.create(
+    const expression = try expr.Expr.Binary.create(
         allocator,
-        try expr.Unary.create(
+        try expr.Expr.Unary.create(
             allocator,
-            try expr.LiteralExpr.create(allocator, token.Literal{ .number = 123 }),
+            try expr.Expr.Literal.create(allocator, token.Literal{ .number = 123 }),
             token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
         ),
         token.Token{ .type = token.TokenType.STAR, .lexeme = "*", .line = 1, .literal = token.Literal.null },
-        try expr.Grouping.create(
+        try expr.Expr.Grouping.create(
             allocator,
-            try expr.LiteralExpr.create(
+            try expr.Expr.Literal.create(
                 allocator,
                 token.Literal{ .number = 45.67 },
             ),
         ),
     );
-
-    const left = try expr.LiteralExpr.create(allocator, token.Literal{ .number = 1 });
-    const right = try expr.LiteralExpr.create(allocator, token.Literal{ .number = 1 });
-    const ex = try expr.Binary.create(
+    const left = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
+    const right = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
+    const ex = try expr.Expr.Binary.create(
         allocator,
         left,
         token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
