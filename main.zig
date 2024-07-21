@@ -60,6 +60,7 @@ pub fn main() !void {
             ),
         ),
     );
+    defer expression.destruct(allocator);
     const left = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
     const right = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
     const ex = try expr.Expr.Binary.create(
@@ -68,6 +69,7 @@ pub fn main() !void {
         token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
         right,
     );
+    defer ex.destruct(allocator);
     const t = expr.PrintVisitor{};
     t.print(expression);
     t.print(ex);

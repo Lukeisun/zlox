@@ -40,6 +40,27 @@ pub const Expr = union(enum) {
             .group => |g| visitor.visitGroupingExpr(g),
         };
     }
+    pub fn destruct(self: *Expr, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .binary => |b| {
+                b.left.destruct(allocator);
+                b.right.destruct(allocator);
+                allocator.destroy(b);
+            },
+            .unary => |u| {
+                u.expression.destruct(allocator);
+                allocator.destroy(u);
+            },
+            .literal => |l| {
+                allocator.destroy(l);
+            },
+            .group => |g| {
+                g.expression.destruct(allocator);
+                allocator.destroy(g);
+            },
+        }
+        allocator.destroy(self);
+    }
 
     pub const Binary = struct {
         left: *Expr,
