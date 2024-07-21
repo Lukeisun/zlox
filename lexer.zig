@@ -19,8 +19,8 @@ const Lexer = struct {
     current: u32,
     tokens: *std.ArrayList(token.Token),
     source: []const u8,
-    keywords: *std.StringHashMap(token.TokenType),
-    pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token), keywords: *std.StringHashMap(token.TokenType)) Lexer {
+    keywords: *const std.StaticStringMap(token.TokenType),
+    pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token), keywords: *const std.StaticStringMap(token.TokenType)) Lexer {
         return Lexer{ .line = 1, .start = 0, .current = 0, .tokens = tokens, .source = source, .keywords = keywords };
     }
     pub fn outOfBounds(self: *Lexer) bool {
@@ -152,23 +152,25 @@ const Lexer = struct {
 };
 pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(token.Token) {
     var tokens = std.ArrayList(token.Token).init(allocator);
-    var map = std.StringHashMap(token.TokenType).init(allocator);
-    try map.put("and", token.TokenType.AND);
-    try map.put("class", token.TokenType.CLASS);
-    try map.put("else", token.TokenType.ELSE);
-    try map.put("false", token.TokenType.FALSE);
-    try map.put("for", token.TokenType.FOR);
-    try map.put("fun", token.TokenType.FUN);
-    try map.put("if", token.TokenType.IF);
-    try map.put("nil", token.TokenType.NIL);
-    try map.put("or", token.TokenType.OR);
-    try map.put("print", token.TokenType.PRINT);
-    try map.put("return", token.TokenType.RETURN);
-    try map.put("super", token.TokenType.SUPER);
-    try map.put("this", token.TokenType.THIS);
-    try map.put("true", token.TokenType.TRUE);
-    try map.put("var", token.TokenType.VAR);
-    try map.put("while", token.TokenType.WHILE);
+    // const maps =
+    const map = std.StaticStringMap(token.TokenType).initComptime(.{
+        .{ "and", token.TokenType.AND },
+        .{ "class", token.TokenType.CLASS },
+        .{ "else", token.TokenType.ELSE },
+        .{ "false", token.TokenType.FALSE },
+        .{ "for", token.TokenType.FOR },
+        .{ "fun", token.TokenType.FUN },
+        .{ "if", token.TokenType.IF },
+        .{ "nil", token.TokenType.NIL },
+        .{ "or", token.TokenType.OR },
+        .{ "print", token.TokenType.PRINT },
+        .{ "return", token.TokenType.RETURN },
+        .{ "super", token.TokenType.SUPER },
+        .{ "this", token.TokenType.THIS },
+        .{ "true", token.TokenType.TRUE },
+        .{ "var", token.TokenType.VAR },
+        .{ "while", token.TokenType.WHILE },
+    });
     var lexer = Lexer.init(source, &tokens, &map);
     // var has_error = false;
     while (!lexer.outOfBounds()) {
