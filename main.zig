@@ -48,6 +48,12 @@ const LexingError = error{
     UnknownCharacter,
     UnterminatedString,
 };
+const ParsingError = error{
+    NoBinaryVisitor,
+    NoUnaryVisitor,
+    NoGroupingVisitor,
+    NoLiteralVisitor,
+};
 const Error = struct {
     line: u32 = 0,
     where: []u8 = "",
@@ -56,7 +62,21 @@ const Error = struct {
         std.debug.print("[line: {d}] Error {s}: {s}\n", .{ self.line, self.where, self.message });
     }
 };
-pub const Literal = union(enum) { string: []const u8, number: f32, null };
+pub const Literal = union(enum) {
+    string: []const u8,
+    number: f32,
+    null,
+    pub fn toString(self: Literal) ![]const u8 {
+        switch (self) {
+            .string => return self.string,
+            .number => {
+                var buf: [128]u8 = undefined;
+                return try std.fmt.bufPrint(&buf, "{d}", .{self.number});
+            },
+            .null => return "null",
+        }
+    }
+};
 const Token = struct {
     type: TokenType,
     lexeme: []const u8,
@@ -64,15 +84,8 @@ const Token = struct {
     literal: Literal,
 
     pub fn print(self: Token) !void {
-        // const stdout = std.io.getStdOut().writer();
         std.debug.print("{s} - Line {d}:\n\tLexeme: {s}\n\tLiteral: ", .{ @tagName(self.type), self.line, self.lexeme });
-        switch (self.literal) {
-            .string => std.debug.print("{s}", .{self.literal.string}),
-            .number => std.debug.print("{d}", .{self.literal.number}),
-            .null => std.debug.print("{?}", .{self.literal.null}),
-        }
-        std.debug.print("\n", .{});
-        // try stdout.print("{s}: Lexeme: {s} Literal: {?} - Line: {d}\n", .{ @tagName(self.type), self.lexeme, self.literal, self.line });
+        std.debug.print("{s}\n", .{try self.literal.toString()});
     }
 };
 const Lexer = struct {
@@ -142,26 +155,6 @@ const Lexer = struct {
             '"' => try self.string(),
             ' ', '\r', '\t' => {},
             '\n' => self.line += 1,
-            // '' => {IDENTIFIER},
-            // '' => {STRING},
-            // '' => {NUMBER},
-            // '' => {AND},
-            // '' => {CLASS},
-            // '' => {ELSE},
-            // '' => {FALSE},
-            // '' => {FUN},
-            // '' => {FOR},
-            // '' => {IF},
-            // '' => {NIL},
-            // '' => {OR},
-            // '' => {PRINT},
-            // '' => {RETURN},
-            // '' => {SUPER},
-            // '' => {THIS},
-            // '' => {TRUE},
-            // '' => {VAR},
-            // '' => {WHILE},
-            // '' => {EOF},
             else => {
                 if (std.ascii.isDigit(c)) {
                     try self.number();
@@ -175,12 +168,10 @@ const Lexer = struct {
     }
     pub fn addTokenWithLiteral(self: *Lexer, token_type: TokenType, literal: Literal) !void {
         const lexeme = if (self.outOfBounds()) "" else self.source[self.start..self.current];
-        // std.debug.print("{s}", .{lexeme});
         try self.tokens.append(.{ .type = token_type, .line = self.line, .lexeme = lexeme, .literal = literal });
     }
     pub fn addToken(self: *Lexer, token_type: TokenType) !void {
         const lexeme = if (self.outOfBounds()) "" else self.source[self.start..self.current];
-        // std.debug.print("{s}", .{lexeme});
         try self.tokens.append(.{ .type = token_type, .line = self.line, .lexeme = lexeme, .literal = Literal.null });
     }
     pub fn peek(self: *Lexer) u8 {
@@ -233,6 +224,94 @@ const Lexer = struct {
         }
         self.current += 1;
         return true;
+    }
+};
+// exprs
+const ExprType = union(enum) {
+    binary: BinaryExpression,
+    unary: UnaryExpression,
+    literal: LiteralExpression,
+    group: GroupingExpression,
+    pub fn accept(self: ExprType, visitor: anytype) !void {
+        switch (self) {
+            .binary => try self.binary.accept(visitor),
+            .unary => try self.unary.accept(visitor),
+            .literal => try self.literal.accept(visitor),
+            .group => try self.group.accept(visitor),
+        }
+    }
+};
+const VisitorTypes = union(enum) { PrintVisitor };
+const PrintVisitor = struct {
+    pub fn print(self: PrintVisitor, expr: ExprType) !void {
+        try expr.accept(self);
+    }
+    // pub fn parenthesize(name: []const u8,
+    pub fn visitBinaryExpr(self: PrintVisitor, expr: BinaryExpression) anyerror!void {
+        std.debug.print("({s}", .{expr.operator.lexeme});
+        std.debug.print(" ", .{});
+        try expr.left.accept(self);
+        std.debug.print(" ", .{});
+        try expr.right.accept(self);
+        std.debug.print(")", .{});
+    }
+    pub fn visitGroupingExpr(self: PrintVisitor, expr: GroupingExpression) anyerror!void {
+        std.debug.print("(group ", .{});
+        std.debug.print(" ", .{});
+        try expr.expr.accept(self);
+        std.debug.print(")", .{});
+    }
+    pub fn visitLiteralExpr(_: PrintVisitor, expr: LiteralExpression) !void {
+        std.debug.print("{s}", .{try expr.literal.toString()});
+    }
+    pub fn visitUnaryExpr(self: PrintVisitor, expr: UnaryExpression) anyerror!void {
+        std.debug.print("({s} ", .{expr.operator.lexeme});
+        try expr.expr.accept(self);
+        std.debug.print(")", .{});
+    }
+};
+const BinaryExpression = struct {
+    left: *const ExprType,
+    operator: Token,
+    right: *const ExprType,
+    pub fn accept(self: BinaryExpression, visitor: anytype) !void {
+        const has_visit = @hasDecl(@TypeOf(visitor), "visitBinaryExpr");
+        if (!has_visit) {
+            return ParsingError.NoBinaryVisitor;
+        }
+        try visitor.visitBinaryExpr(self);
+    }
+};
+const GroupingExpression = struct {
+    expr: *const ExprType,
+    pub fn accept(self: GroupingExpression, visitor: anytype) !void {
+        const has_visit = @hasDecl(@TypeOf(visitor), "visitGroupingExpr");
+        if (!has_visit) {
+            return ParsingError.NoGroupingVisitor;
+        }
+        try visitor.visitGroupingExpr(self);
+    }
+};
+const UnaryExpression = struct {
+    operator: Token,
+    expr: *const ExprType,
+
+    pub fn accept(self: UnaryExpression, visitor: anytype) !void {
+        const has_visit = @hasDecl(@TypeOf(visitor), "visitUnaryExpr");
+        if (!has_visit) {
+            return ParsingError.NoUnaryVisitor;
+        }
+        try visitor.visitUnaryExpr(self);
+    }
+};
+const LiteralExpression = struct {
+    literal: Literal,
+    pub fn accept(self: LiteralExpression, visitor: anytype) !void {
+        const has_visit = @hasDecl(@TypeOf(visitor), "visitLiteralExpr");
+        if (!has_visit) {
+            return ParsingError.NoLiteralVisitor;
+        }
+        try visitor.visitLiteralExpr(self);
     }
 };
 pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(Token) {
@@ -314,4 +393,12 @@ pub fn main() !void {
             try stderr.writeAll("Usage: zlox [script]\n");
         },
     }
+    const z = ExprType{ .literal = LiteralExpression{ .literal = Literal{ .number = 123 } } };
+    const left = ExprType{ .unary = UnaryExpression{ .operator = Token{ .type = TokenType.MINUS, .literal = Literal.null, .line = 1, .lexeme = "-" }, .expr = &z } };
+    const op = Token{ .type = TokenType.STAR, .lexeme = "*", .line = 1, .literal = Literal.null };
+    const x = ExprType{ .literal = LiteralExpression{ .literal = Literal{ .number = 45.67 } } };
+    const right = ExprType{ .group = GroupingExpression{ .expr = &x } };
+    const expr = BinaryExpression{ .left = &left, .operator = op, .right = &right };
+    const t = PrintVisitor{};
+    try t.print(ExprType{ .binary = expr });
 }
