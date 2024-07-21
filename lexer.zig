@@ -19,8 +19,8 @@ const Lexer = struct {
     current: u32,
     tokens: *std.ArrayList(token.Token),
     source: []const u8,
-    keywords: *const std.StaticStringMap(token.TokenType),
-    pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token), keywords: *const std.StaticStringMap(token.TokenType)) Lexer {
+    keywords: std.StaticStringMap(token.TokenType),
+    pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token), comptime keywords: std.StaticStringMap(token.TokenType)) Lexer {
         return Lexer{ .line = 1, .start = 0, .current = 0, .tokens = tokens, .source = source, .keywords = keywords };
     }
     pub fn outOfBounds(self: *Lexer) bool {
@@ -171,7 +171,7 @@ pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(toke
         .{ "var", token.TokenType.VAR },
         .{ "while", token.TokenType.WHILE },
     });
-    var lexer = Lexer.init(source, &tokens, &map);
+    var lexer = Lexer.init(source, &tokens, map);
     // var has_error = false;
     while (!lexer.outOfBounds()) {
         lexer.start = lexer.current;
