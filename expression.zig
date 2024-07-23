@@ -133,8 +133,11 @@ pub const PrintVisitor = struct {
         std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
     pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ReturnType {
-        const val = expr.value.toString() catch |err| panic(err);
-        std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
+        if (expr.value.toString()) |val| {
+            std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
+        } else |err| {
+            panic(err);
+        }
     }
     pub fn visitUnaryExpr(self: PrintVisitor, expr: *Expr.Unary) ReturnType {
         std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
