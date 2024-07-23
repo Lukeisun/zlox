@@ -44,33 +44,35 @@ pub fn main() !void {
             try stderr.writeAll("Usage: zlox [script]\n");
         },
     }
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
     const expression = try expr.Expr.Binary.create(
-        allocator,
+        arena_allocator,
         try expr.Expr.Unary.create(
-            allocator,
+            arena_allocator,
             try expr.Expr.Literal.create(allocator, token.Literal{ .number = 123 }),
             token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
         ),
         token.Token{ .type = token.TokenType.STAR, .lexeme = "*", .line = 1, .literal = token.Literal.null },
         try expr.Expr.Grouping.create(
-            allocator,
+            arena_allocator,
             try expr.Expr.Literal.create(
-                allocator,
+                arena_allocator,
                 token.Literal{ .number = 45.67 },
             ),
         ),
     );
-    defer expression.destruct(allocator);
-    const left = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
-    const right = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
-    const ex = try expr.Expr.Binary.create(
-        allocator,
-        left,
-        token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
-        right,
-    );
-    defer ex.destruct(allocator);
+    // const left = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
+    // const right = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
+    // const ex = try expr.Expr.Binary.create(
+    //     allocator,
+    //     left,
+    //     token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
+    //     right,
+    // );
+    // defer ex.destruct(allocator);
     const t = expr.PrintVisitor{};
     t.print(expression);
-    t.print(ex);
+    // t.print(ex);
 }

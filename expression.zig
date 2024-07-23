@@ -31,15 +31,7 @@ pub const Expr = union(enum) {
         }
         return V.ReturnType;
     }
-
-    pub fn accept(self: Expr, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor)) {
-        return switch (self) {
-            .binary => |b| visitor.visitBinaryExpr(b),
-            .unary => |u| visitor.visitUnaryExpr(u),
-            .literal => |l| visitor.visitLiteralExpr(l),
-            .group => |g| visitor.visitGroupingExpr(g),
-        };
-    }
+    // for non arena uses
     pub fn destruct(self: *Expr, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .binary => |b| {
@@ -62,6 +54,18 @@ pub const Expr = union(enum) {
         allocator.destroy(self);
     }
 
+    pub fn accept(self: Expr, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor)) {
+        return switch (self) {
+            .binary => |b| visitor.visitBinaryExpr(b),
+            .unary => |u| visitor.visitUnaryExpr(u),
+            .literal => |l| visitor.visitLiteralExpr(l),
+            .group => |g| visitor.visitGroupingExpr(g),
+        };
+    }
+    pub fn create(allocator: std.mem.Allocator) !*Expr {
+        return allocator.create(Expr);
+    }
+
     pub const Binary = struct {
         left: *Expr,
         operator: token.Token,
@@ -69,7 +73,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, left: *Expr, operator: token.Token, right: *Expr) !*Expr {
             const binary = try allocator.create(Binary);
             binary.* = .{ .left = left, .operator = operator, .right = right };
-            const expr = try allocator.create(Expr);
+            const expr = try Expr.create(allocator);
             expr.* = .{ .binary = binary };
             return expr;
         }
@@ -79,7 +83,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, expression: *Expr) !*Expr {
             const group = try allocator.create(Grouping);
             group.* = .{ .expression = expression };
-            const expr = try allocator.create(Expr);
+            const expr = try Expr.create(allocator);
             expr.* = .{ .group = group };
             return expr;
         }
@@ -90,7 +94,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, expression: *Expr, operator: token.Token) !*Expr {
             const unary = try allocator.create(Unary);
             unary.* = .{ .expression = expression, .operator = operator };
-            const expr = try allocator.create(Expr);
+            const expr = try Expr.create(allocator);
             expr.* = .{ .unary = unary };
             return expr;
         }
@@ -100,7 +104,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, value: token.Literal) !*Expr {
             const literal = try allocator.create(Literal);
             literal.* = .{ .value = value };
-            const expr = try allocator.create(Expr);
+            const expr = try Expr.create(allocator);
             expr.* = .{ .literal = literal };
             return expr;
         }
