@@ -110,34 +110,35 @@ pub const Expr = union(enum) {
         }
     };
 };
+pub fn panic(err: anyerror) void {
+    std.debug.panic("Error {s}", .{@errorName(err)});
+}
 
 pub const PrintVisitor = struct {
     pub const ReturnType = void;
+    output: *std.ArrayList(u8),
     pub fn print(self: PrintVisitor, expr: *Expr) ReturnType {
         expr.accept(self);
-        std.debug.print("\n", .{});
     }
     pub fn visitBinaryExpr(self: PrintVisitor, expr: *Expr.Binary) ReturnType {
-        std.debug.print("({s}", .{expr.operator.lexeme});
-        std.debug.print(" ", .{});
+        std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
         expr.left.accept(self);
-        std.debug.print(" ", .{});
+        std.fmt.format(self.output.writer(), " ", .{}) catch |err| panic(err);
         expr.right.accept(self);
-        std.debug.print(")", .{});
+        std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
     pub fn visitGroupingExpr(self: PrintVisitor, expr: *Expr.Grouping) ReturnType {
-        std.debug.print("(group ", .{});
-        std.debug.print(" ", .{});
+        std.fmt.format(self.output.writer(), "(group ", .{}) catch |err| panic(err);
         expr.expression.accept(self);
-        std.debug.print(")", .{});
+        std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
-    pub fn visitLiteralExpr(_: PrintVisitor, expr: *Expr.Literal) ReturnType {
-        const val = expr.value.toString() catch |err| std.debug.panic("{}", .{err});
-        std.debug.print("{s}", .{val});
+    pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ReturnType {
+        const val = expr.value.toString() catch |err| panic(err);
+        std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
     }
     pub fn visitUnaryExpr(self: PrintVisitor, expr: *Expr.Unary) ReturnType {
-        std.debug.print("({s} ", .{expr.operator.lexeme});
+        std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
         expr.expression.accept(self);
-        std.debug.print(")", .{});
+        std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
 };

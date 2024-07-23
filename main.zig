@@ -72,7 +72,10 @@ pub fn main() !void {
     //     right,
     // );
     // defer ex.destruct(allocator);
-    const t = expr.PrintVisitor{};
-    t.print(expression);
+    var output = std.ArrayList(u8).init(allocator);
+    defer output.deinit();
+    const visit = expr.PrintVisitor{ .output = &output };
+    visit.print(expression);
+    std.debug.print("{s}\n", .{output.items});
     // t.print(ex);
 }
