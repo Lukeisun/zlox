@@ -196,9 +196,6 @@ test "Multiline Comments" {
     ;
     const tokens = try lex(allocator, valid_comments);
     defer tokens.deinit();
-    for (tokens.items) |t| {
-        try t.print();
-    }
     const singleton = tokens.items.len == 1;
     const is_eof = tokens.items[0].type == token.TokenType.EOF;
     try std.testing.expect(singleton and is_eof);

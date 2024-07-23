@@ -63,9 +63,10 @@ pub const Literal = union(enum) {
         switch (self) {
             .string => return self.string,
             .number => {
-                // var buf: [std.fmt.format_float.bufferSize(.decimal, @TypeOf(self.number))]u8 = undefined;
-                var buf: [128]u8 = undefined;
-                const z = try std.fmt.formatFloat(&buf, self.number, .{ .mode = .decimal });
+                var buf: [std.fmt.format_float.bufferSize(.decimal, @TypeOf(self.number))]u8 = undefined;
+                // var buf: [128]u8 = undefined;
+                // const z = try std.fmt.formatFloat(&buf, self.number, .{ .mode = .decimal });
+                const z = try std.fmt.bufPrint(&buf, "{d}", .{self.number});
                 // std.debug.print("{s}\n", .{buf});
                 return z;
             },
