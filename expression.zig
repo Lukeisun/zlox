@@ -91,7 +91,7 @@ pub const Expr = union(enum) {
     pub const Unary = struct {
         operator: token.Token,
         expression: *Expr,
-        pub fn create(allocator: std.mem.Allocator, expression: *Expr, operator: token.Token) !*Expr {
+        pub fn create(allocator: std.mem.Allocator, operator: token.Token, expression: *Expr) !*Expr {
             const unary = try allocator.create(Unary);
             unary.* = .{ .expression = expression, .operator = operator };
             const expr = try Expr.create(allocator);
@@ -134,9 +134,14 @@ pub const PrintVisitor = struct {
     }
     pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ReturnType {
         if (expr.value.toString()) |val| {
-            std.debug.print("{s}\n", .{val});
+            // std.debug.print("{s}\n", .{val});
             // self.output.appendSlice(val) catch |err| panic(err);
-            std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
+            // std.debug.print("{d}\n", .{val.len});
+            for (val) |v| {
+                std.debug.print("{c}\n", .{v});
+                self.output.append(v) catch |err| panic(err);
+            }
+            // std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
         } else |err| {
             panic(err);
         }
