@@ -8,9 +8,9 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const buff = try file.readToEndAlloc(allocator, stat.size);
     const tokens = try lexer.lex(allocator, buff);
     defer tokens.deinit();
-    // for (tokens.items) |t| {
-    //     try t.print();
-    // }
+    for (tokens.items) |t| {
+        try t.print();
+    }
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
