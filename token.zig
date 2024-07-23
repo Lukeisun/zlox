@@ -58,18 +58,21 @@ pub const Token = struct {
 pub const Literal = union(enum) {
     string: []const u8,
     number: f32,
+    boolean: bool,
     null,
     pub fn toString(self: Literal) ![]const u8 {
         switch (self) {
-            .string => return self.string,
-            .number => {
-                var buf: [std.fmt.format_float.bufferSize(.decimal, @TypeOf(self.number))]u8 = undefined;
+            .string => |s| return s,
+            .number => |num| {
+                // change to allocPrint or pass in buffer
+                var buf: [std.fmt.format_float.bufferSize(.decimal, @TypeOf(num))]u8 = undefined;
                 // var buf: [128]u8 = undefined;
                 // const z = try std.fmt.formatFloat(&buf, self.number, .{ .mode = .decimal });
-                const z = try std.fmt.bufPrint(&buf, "{d}", .{self.number});
+                const z = try std.fmt.bufPrint(&buf, "{d}", .{num});
                 // std.debug.print("{s}\n", .{buf});
                 return z;
             },
+            .boolean => |b| return b,
             .null => return "null",
         }
     }
