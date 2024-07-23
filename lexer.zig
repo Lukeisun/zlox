@@ -184,3 +184,22 @@ pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(toke
     try lexer.addToken(token.TokenType.EOF);
     return tokens;
 }
+test "Multiline Comments" {
+    const allocator = std.testing.allocator;
+    const valid_comments =
+        \\ /* */
+        \\ /* /* "test" */ 123 */
+        \\ // "comment"
+        \\ /*
+        \\ 45.67
+        \\ */
+    ;
+    const tokens = try lex(allocator, valid_comments);
+    defer tokens.deinit();
+    for (tokens.items) |t| {
+        try t.print();
+    }
+    const singleton = tokens.items.len == 1;
+    const is_eof = tokens.items[0].type == token.TokenType.EOF;
+    try std.testing.expect(singleton and is_eof);
+}
