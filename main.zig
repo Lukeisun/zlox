@@ -21,11 +21,6 @@ pub const keywords = std.StaticStringMap(token.TokenType).initComptime(.{
     .{ "var", token.TokenType.VAR },
     .{ "while", token.TokenType.WHILE },
 });
-pub fn debugTokens(tokens: []token.Token) !void {
-    for (tokens) |t| {
-        try t.print();
-    }
-}
 pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const stat = try file.stat();
@@ -46,15 +41,15 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
     const stdin = std.io.getStdIn().reader();
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
     try stdout.writeAll("> ");
     while (try stdin.readUntilDelimiterOrEofAlloc(allocator, '\n', 128)) |s| {
         defer allocator.free(s);
         const tokens = try lexer.lex(allocator, s);
         defer tokens.deinit();
-        try debugTokens(tokens.items);
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        defer arena.deinit();
-        const arena_allocator = arena.allocator();
+        try token.debugTokens(tokens.items);
         const expression = Parser.parse(arena_allocator, tokens.items);
         var output = std.ArrayList(u8).init(arena_allocator);
         defer output.deinit();
@@ -62,6 +57,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         if (expression) |e| visit.print(e) else std.debug.print("{any}\n", .{expression});
         try stdout.print("{s}\n", .{output.items});
         try stdout.writeAll("> ");
+        _ = arena.reset(.retain_capacity);
     }
 }
 pub fn main() !void {

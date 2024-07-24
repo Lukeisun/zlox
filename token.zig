@@ -51,11 +51,16 @@ pub const Token = struct {
     literal: Literal,
 
     pub fn print(self: Token) !void {
-        std.debug.print("{s} - Line {d}:\n\tLexeme: {s}\n\tLiteral: ", .{ @tagName(self.type), self.line, self.lexeme });
+        std.debug.print("{s} - Line {d}:\n\tLexeme: {s}\tLiteral: ", .{ @tagName(self.type), self.line, self.lexeme });
         var buf: [128]u8 = undefined;
         std.debug.print("{s}\n", .{try self.literal.toString(&buf)});
     }
 };
+pub fn debugTokens(tokens: []Token) !void {
+    for (tokens) |t| {
+        try t.print();
+    }
+}
 pub const Literal = union(enum) {
     string: []const u8,
     number: f32,

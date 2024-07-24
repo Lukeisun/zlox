@@ -135,7 +135,7 @@ pub const PrintVisitor = struct {
     pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ReturnType {
         var buf: [128]u8 = undefined;
         if (expr.value.toString(&buf)) |val| {
-            self.output.appendSlice(val) catch |err| panic(err);
+            std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
         } else |err| {
             panic(err);
         }
