@@ -7,13 +7,13 @@ const LexingError = error{
     UnterminatedString,
 };
 const Lexer = struct {
-    line: u16,
-    start: u32,
-    current: u32,
+    line: u16 = 1,
+    start: u32 = 0,
+    current: u32 = 0,
     tokens: *std.ArrayList(token.Token),
     source: []const u8,
     pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token)) Lexer {
-        return Lexer{ .line = 1, .start = 0, .current = 0, .tokens = tokens, .source = source };
+        return Lexer{ .tokens = tokens, .source = source };
     }
     pub fn outOfBounds(self: *Lexer) bool {
         return self.current >= self.source.len;

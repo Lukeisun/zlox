@@ -7,11 +7,11 @@ const Literal = @import("token.zig").Literal;
 const Error = @import("error.zig").Error;
 const ParsingError = error{ UnexpectedToken, ExpectingExpr };
 pub const Parser = struct {
-    current: u32,
+    current: u32 = 0,
     tokens: []Token,
     allocator: std.mem.Allocator,
     pub fn create(allocator: std.mem.Allocator, tokens: []Token) Parser {
-        return Parser{ .allocator = allocator, .tokens = tokens, .current = 0 };
+        return Parser{ .allocator = allocator, .tokens = tokens };
     }
     pub fn parse(allocator: std.mem.Allocator, tokens: []Token) ?*Expr {
         var parser = Parser.create(allocator, tokens);
