@@ -52,7 +52,8 @@ pub const Token = struct {
 
     pub fn print(self: Token) !void {
         std.debug.print("{s} - Line {d}:\n\tLexeme: {s}\n\tLiteral: ", .{ @tagName(self.type), self.line, self.lexeme });
-        std.debug.print("{s}\n", .{try self.literal.toString()});
+        var buf: [128]u8 = undefined;
+        std.debug.print("{s}\n", .{try self.literal.toString(&buf)});
     }
 };
 pub const Literal = union(enum) {
@@ -60,19 +61,13 @@ pub const Literal = union(enum) {
     number: f32,
     boolean: bool,
     null,
-    pub fn toString(self: Literal) ![]const u8 {
+    pub fn toString(self: Literal, buf: []u8) ![]const u8 {
         switch (self) {
             .string => |s| return s,
             .number => |num| {
-                // change to allocPrint or pass in buffer
-                var buf: [std.fmt.format_float.bufferSize(.decimal, @TypeOf(num))]u8 = undefined;
-                // var buf: [128]u8 = undefined;
-                // const z = try std.fmt.formatFloat(&buf, self.number, .{ .mode = .decimal });
-                const z = try std.fmt.bufPrint(&buf, "{d}", .{num});
-                // std.debug.print("{s}\n", .{buf});
-                return z;
+                return try std.fmt.bufPrint(buf, "{d}", .{num});
             },
-            .boolean => |b| return b,
+            .boolean => |b| return if (b) "true" else "false",
             .null => return "null",
         }
     }

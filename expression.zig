@@ -133,15 +133,9 @@ pub const PrintVisitor = struct {
         std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
     pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ReturnType {
-        if (expr.value.toString()) |val| {
-            // std.debug.print("{s}\n", .{val});
-            // self.output.appendSlice(val) catch |err| panic(err);
-            // std.debug.print("{d}\n", .{val.len});
-            for (val) |v| {
-                std.debug.print("{c}\n", .{v});
-                self.output.append(v) catch |err| panic(err);
-            }
-            // std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
+        var buf: [128]u8 = undefined;
+        if (expr.value.toString(&buf)) |val| {
+            self.output.appendSlice(val) catch |err| panic(err);
         } else |err| {
             panic(err);
         }

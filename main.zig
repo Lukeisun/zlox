@@ -51,8 +51,8 @@ pub fn main() !void {
         arena_allocator,
         try expr.Expr.Unary.create(
             arena_allocator,
-            try expr.Expr.Literal.create(allocator, token.Literal{ .number = 123 }),
             token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
+            try expr.Expr.Literal.create(allocator, token.Literal{ .number = 123 }),
         ),
         token.Token{ .type = token.TokenType.STAR, .lexeme = "*", .line = 1, .literal = token.Literal.null },
         try expr.Expr.Grouping.create(
