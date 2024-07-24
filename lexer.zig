@@ -1,17 +1,10 @@
 const std = @import("std");
 const token = @import("token.zig");
+const keywords = @import("main.zig").keywords;
+const Error = @import("error.zig").Error;
 const LexingError = error{
     UnknownCharacter,
     UnterminatedString,
-};
-// TODO: move
-const Error = struct {
-    line: u32 = 0,
-    where: []u8 = "",
-    message: [:0]const u8 = "",
-    pub fn report(self: Error) void {
-        std.debug.print("[line: {d}] Error {s}: {s}\n", .{ self.line, self.where, self.message });
-    }
 };
 const Lexer = struct {
     line: u16,
@@ -19,9 +12,8 @@ const Lexer = struct {
     current: u32,
     tokens: *std.ArrayList(token.Token),
     source: []const u8,
-    keywords: std.StaticStringMap(token.TokenType),
-    pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token), comptime keywords: std.StaticStringMap(token.TokenType)) Lexer {
-        return Lexer{ .line = 1, .start = 0, .current = 0, .tokens = tokens, .source = source, .keywords = keywords };
+    pub fn init(source: []const u8, tokens: *std.ArrayList(token.Token)) Lexer {
+        return Lexer{ .line = 1, .start = 0, .current = 0, .tokens = tokens, .source = source };
     }
     pub fn outOfBounds(self: *Lexer) bool {
         return self.current >= self.source.len;
@@ -111,7 +103,7 @@ const Lexer = struct {
     pub fn identifier(self: *Lexer) !void {
         while (std.ascii.isAlphanumeric(self.peek())) self.current += 1;
         const slice = self.source[self.start..self.current];
-        const token_type = self.keywords.get(slice);
+        const token_type = keywords.get(slice);
         if (token_type) |t| {
             try self.addToken(t);
         } else {
@@ -152,27 +144,7 @@ const Lexer = struct {
 };
 pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(token.Token) {
     var tokens = std.ArrayList(token.Token).init(allocator);
-    // const maps =
-    const map = std.StaticStringMap(token.TokenType).initComptime(.{
-        .{ "and", token.TokenType.AND },
-        .{ "class", token.TokenType.CLASS },
-        .{ "else", token.TokenType.ELSE },
-        .{ "false", token.TokenType.FALSE },
-        .{ "for", token.TokenType.FOR },
-        .{ "fun", token.TokenType.FUN },
-        .{ "if", token.TokenType.IF },
-        .{ "nil", token.TokenType.NIL },
-        .{ "or", token.TokenType.OR },
-        .{ "print", token.TokenType.PRINT },
-        .{ "return", token.TokenType.RETURN },
-        .{ "super", token.TokenType.SUPER },
-        .{ "this", token.TokenType.THIS },
-        .{ "true", token.TokenType.TRUE },
-        .{ "var", token.TokenType.VAR },
-        .{ "while", token.TokenType.WHILE },
-    });
-    var lexer = Lexer.init(source, &tokens, map);
-    // var has_error = false;
+    var lexer = Lexer.init(source, &tokens);
     while (!lexer.outOfBounds()) {
         lexer.start = lexer.current;
         lexer.eatToken() catch |err| {

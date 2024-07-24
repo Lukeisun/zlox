@@ -2,15 +2,41 @@ const std = @import("std");
 const lexer = @import("lexer.zig");
 const token = @import("token.zig");
 const expr = @import("expression.zig");
+const Parser = @import("parser.zig").Parser;
+pub const keywords = std.StaticStringMap(token.TokenType).initComptime(.{
+    .{ "and", token.TokenType.AND },
+    .{ "class", token.TokenType.CLASS },
+    .{ "else", token.TokenType.ELSE },
+    .{ "false", token.TokenType.FALSE },
+    .{ "for", token.TokenType.FOR },
+    .{ "fun", token.TokenType.FUN },
+    .{ "if", token.TokenType.IF },
+    .{ "nil", token.TokenType.NIL },
+    .{ "or", token.TokenType.OR },
+    .{ "print", token.TokenType.PRINT },
+    .{ "return", token.TokenType.RETURN },
+    .{ "super", token.TokenType.SUPER },
+    .{ "this", token.TokenType.THIS },
+    .{ "true", token.TokenType.TRUE },
+    .{ "var", token.TokenType.VAR },
+    .{ "while", token.TokenType.WHILE },
+});
 pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
     const stat = try file.stat();
-    const buff = try file.readToEndAlloc(allocator, stat.size);
-    const tokens = try lexer.lex(allocator, buff);
+    const source = try file.readToEndAlloc(allocator, stat.size);
+    const tokens = try lexer.lex(allocator, source);
     defer tokens.deinit();
-    for (tokens.items) |t| {
-        try t.print();
-    }
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
+    const expression = Parser.parse(arena_allocator, tokens.items);
+    var output = std.ArrayList(u8).init(arena_allocator);
+    defer output.deinit();
+    const visit = expr.PrintVisitor{ .output = &output };
+    if (expression) |e| visit.print(e) else std.debug.print("{any}", .{expression});
+    std.debug.print("{s}\n", .{output.items});
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
@@ -18,7 +44,18 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
     try stdout.writeAll("> ");
     while (try stdin.readUntilDelimiterOrEofAlloc(allocator, '\n', 128)) |s| {
         defer allocator.free(s);
-        try stdout.print("{s}\n", .{s});
+        const tokens = try lexer.lex(allocator, s);
+        defer tokens.deinit();
+
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+        const expression = Parser.parse(arena_allocator, tokens.items);
+        var output = std.ArrayList(u8).init(arena_allocator);
+        defer output.deinit();
+        const visit = expr.PrintVisitor{ .output = &output };
+        if (expression) |e| visit.print(e) else std.debug.print("{any}\n", .{expression});
+        try stdout.print("{s}\n", .{output.items});
         try stdout.writeAll("> ");
     }
 }
@@ -29,6 +66,7 @@ pub fn main() !void {
     defer args.deinit();
     var collected_args = std.ArrayList([:0]const u8).init(allocator);
     _ = args.skip();
+
     while (args.next()) |arg| {
         try collected_args.append(arg);
     }
@@ -44,38 +82,4 @@ pub fn main() !void {
             try stderr.writeAll("Usage: zlox [script]\n");
         },
     }
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    defer arena.deinit();
-    const arena_allocator = arena.allocator();
-    const expression = try expr.Expr.Binary.create(
-        arena_allocator,
-        try expr.Expr.Unary.create(
-            arena_allocator,
-            token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
-            try expr.Expr.Literal.create(allocator, token.Literal{ .number = 123 }),
-        ),
-        token.Token{ .type = token.TokenType.STAR, .lexeme = "*", .line = 1, .literal = token.Literal.null },
-        try expr.Expr.Grouping.create(
-            arena_allocator,
-            try expr.Expr.Literal.create(
-                arena_allocator,
-                token.Literal{ .number = 45.67 },
-            ),
-        ),
-    );
-    // const left = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
-    // const right = try expr.Expr.Literal.create(allocator, token.Literal{ .number = 1 });
-    // const ex = try expr.Expr.Binary.create(
-    //     allocator,
-    //     left,
-    //     token.Token{ .type = token.TokenType.MINUS, .lexeme = "-", .line = 1, .literal = token.Literal.null },
-    //     right,
-    // );
-    // defer ex.destruct(allocator);
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
-    const visit = expr.PrintVisitor{ .output = &output };
-    visit.print(expression);
-    std.debug.print("{s}\n", .{output.items});
-    // t.print(ex);
 }
