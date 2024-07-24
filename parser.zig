@@ -6,6 +6,12 @@ const Token = @import("token.zig").Token;
 const Literal = @import("token.zig").Literal;
 const Error = @import("error.zig").Error;
 const ParsingError = error{ UnexpectedToken, ExpectingExpr };
+pub fn isParsingError(err: anyerror) bool {
+    return switch (err) {
+        ParsingError.ExpectingExpr, ParsingError.UnexpectedToken => true,
+        else => false,
+    };
+}
 pub const Parser = struct {
     current: u32 = 0,
     tokens: []Token,
@@ -15,9 +21,12 @@ pub const Parser = struct {
     }
     pub fn parse(allocator: std.mem.Allocator, tokens: []Token) ?*Expr {
         var parser = Parser.create(allocator, tokens);
-        return parser.expression() catch null;
+        return parser.expression() catch |err| {
+            return if (isParsingError(err)) null else unreachable;
+        };
     }
-    fn expression(self: *Parser) anyerror!*Expr {
+
+    fn expression(self: *Parser) (ParsingError || error{ OutOfMemory, NoSpaceLeft })!*Expr {
         return try self.equality();
     }
     fn equality(self: *Parser) !*Expr {
@@ -47,7 +56,6 @@ pub const Parser = struct {
         }
         return expr;
     }
-
     fn factor(self: *Parser) !*Expr {
         var expr = try self.unary();
         while (self.match(&[_]TokenType{ TokenType.SLASH, TokenType.STAR })) {
@@ -75,12 +83,18 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.LEFT_PAREN})) {
             const expr = try self.expression();
             _ = self.consume(TokenType.RIGHT_PAREN) catch |err| {
-                const t = self.peek();
-                var buf: [128]u8 = undefined;
-                std.debug.print("{s}\n", .{@errorName(err)});
-                const where = try std.fmt.bufPrint(&buf, " at '{s}'", .{t.lexeme});
-                const parse_error = Error{ .line = t.line, .where = where, .message = "Expect ')' after expression" };
-                parse_error.report();
+                if (isParsingError(err)) {
+                    const t = self.peek();
+                    var buf: [128]u8 = undefined;
+                    std.debug.print("{s}\n", .{@errorName(err)});
+                    const where = try std.fmt.bufPrint(&buf, " at '{s}'", .{t.lexeme});
+                    std.debug.print("{s}\n", .{t.lexeme});
+                    const parse_error = Error{ .line = t.line, .where = where, .message = "Expect ')' after expression" };
+                    parse_error.report();
+                } else {
+                    std.debug.print("{any}\n", .{@errorName(err)});
+                    unreachable;
+                }
             };
             return try Expr.Grouping.create(self.allocator, expr);
         }
