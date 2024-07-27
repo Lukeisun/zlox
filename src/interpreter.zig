@@ -7,6 +7,9 @@ pub const EvalVisitor = struct {
     pub const ReturnType = Literal;
     allocator: std.mem.Allocator,
     // output: *std.ArrayList(u8),
+    pub fn create(allocator: std.mem.Allocator) EvalVisitor {
+        return EvalVisitor{ .allocator = allocator };
+    }
     pub fn print(self: @This(), expr: *Expr) ReturnType {
         return expr.accept(self);
     }

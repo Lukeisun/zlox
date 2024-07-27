@@ -117,6 +117,9 @@ pub fn panic(err: anyerror) void {
 pub const PrintVisitor = struct {
     pub const ReturnType = void;
     output: *std.ArrayList(u8),
+    pub fn create(output: *std.ArrayList(u8)) PrintVisitor {
+        return PrintVisitor{ .output = output };
+    }
     pub fn print(self: PrintVisitor, expr: *Expr) ReturnType {
         expr.accept(self);
     }

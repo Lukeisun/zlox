@@ -38,7 +38,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     // const visit = expr.PrintVisitor{ .output = &output };
     // if (expression) |e| visit.print(e) else std.debug.print("{any}", .{expression});
     std.debug.print("{s}\n", .{output.items});
-    const visit = EvalVisitor{ .allocator = arena_allocator };
+    const visit = EvalVisitor.create(allocator);
     _ = if (expression) |e| visit.print(e) else null;
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
@@ -57,7 +57,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         // var output = std.ArrayList(u8).init(arena_allocator);
         // defer output.deinit();
         // try stdout.print("{s}\n", .{output.items});
-        const visit = EvalVisitor{ .allocator = arena_allocator };
+        const visit = EvalVisitor.create(arena_allocator);
         const ret = if (expression) |e| visit.print(e) else unreachable;
         var buf: [512]u8 = undefined;
         const val = try ret.toString(&buf);
