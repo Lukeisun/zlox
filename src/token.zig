@@ -76,4 +76,7 @@ pub const Literal = union(enum) {
             .null => return "null",
         }
     }
+    pub fn tagEquals(self: Literal, o: Literal) bool {
+        return std.meta.activeTag(self) == std.meta.activeTag(o);
+    }
 };

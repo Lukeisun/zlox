@@ -3,6 +3,7 @@ const lexer = @import("lexer.zig");
 const token = @import("token.zig");
 const expr = @import("expression.zig");
 const Parser = @import("parser.zig").Parser;
+const EvalVisitor = @import("interpreter.zig").EvalVisitor;
 pub const keywords = std.StaticStringMap(token.TokenType).initComptime(.{
     .{ "and", token.TokenType.AND },
     .{ "class", token.TokenType.CLASS },
@@ -34,9 +35,11 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const expression = Parser.parse(arena_allocator, tokens.items);
     var output = std.ArrayList(u8).init(arena_allocator);
     defer output.deinit();
-    const visit = expr.PrintVisitor{ .output = &output };
-    if (expression) |e| visit.print(e) else std.debug.print("{any}", .{expression});
+    // const visit = expr.PrintVisitor{ .output = &output };
+    // if (expression) |e| visit.print(e) else std.debug.print("{any}", .{expression});
     std.debug.print("{s}\n", .{output.items});
+    const visit = EvalVisitor{ .allocator = arena_allocator };
+    _ = if (expression) |e| visit.print(e) else null;
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
@@ -51,11 +54,15 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         defer tokens.deinit();
         try token.debugTokens(tokens.items);
         const expression = Parser.parse(arena_allocator, tokens.items);
-        var output = std.ArrayList(u8).init(arena_allocator);
-        defer output.deinit();
-        const visit = expr.PrintVisitor{ .output = &output };
-        if (expression) |e| visit.print(e) else std.debug.print("{any}\n", .{expression});
-        try stdout.print("{s}\n", .{output.items});
+        // var output = std.ArrayList(u8).init(arena_allocator);
+        // defer output.deinit();
+        // try stdout.print("{s}\n", .{output.items});
+        const visit = EvalVisitor{ .allocator = arena_allocator };
+        const ret = if (expression) |e| visit.print(e) else unreachable;
+        var buf: [512]u8 = undefined;
+        const val = try ret.toString(&buf);
+        try stdout.print("{s}\n", .{val});
+
         try stdout.writeAll("> ");
         _ = arena.reset(.retain_capacity);
     }
