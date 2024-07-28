@@ -32,17 +32,11 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
-    const expression = Parser.parse(arena_allocator, tokens.items) orelse unreachable;
+    const statements = try Parser.parse(arena_allocator, tokens.items);
     var output = std.ArrayList(u8).init(arena_allocator);
     defer output.deinit();
-    // const visit = expr.PrintVisitor{ .output = &output };
-    // if (expression) |e| visit.print(e) else std.debug.print("{any}", .{expression});
-    std.debug.print("{s}\n", .{output.items});
     var interpreter = EvalVisitor.create(arena_allocator);
-    const ret = try interpreter.interpret(expression);
-    var buf: [512]u8 = undefined;
-    const val = try ret.toString(&buf);
-    std.debug.print("{s}\n", .{val});
+    try interpreter.interpret(statements);
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
@@ -56,23 +50,13 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         const tokens = try lexer.lex(allocator, s);
         defer tokens.deinit();
         try token.debugTokens(tokens.items);
-        const expression = Parser.parse(arena_allocator, tokens.items) orelse {
-            std.log.err("Invalid Expression\n", .{});
+        const statements = Parser.parse(arena_allocator, tokens.items) catch std.debug.panic("OOM\n", .{});
+        if (statements.items.len == 0) {
             try stdout.writeAll("> ");
             continue;
-        };
-        // var output = std.ArrayList(u8).init(arena_allocator);
-        // defer output.deinit();
-        // try stdout.print("{s}\n", .{output.items});
+        }
         var interpreter = EvalVisitor.create(arena_allocator);
-        const ret = interpreter.interpret(expression) catch |err| {
-            std.debug.assert(err != error.OutOfMemory);
-            try stdout.writeAll("> ");
-            continue;
-        };
-        var buf: [512]u8 = undefined;
-        const val = try ret.toString(&buf);
-        try stdout.print("{s}\n", .{val});
+        try interpreter.interpret(statements);
         try stdout.writeAll("> ");
         _ = arena.reset(.retain_capacity);
     }

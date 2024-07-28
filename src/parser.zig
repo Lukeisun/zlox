@@ -17,49 +17,45 @@ pub const Parser = struct {
     current: u32 = 0,
     tokens: []Token,
     allocator: std.mem.Allocator,
-    statements: std.ArrayList(Stmt),
+    statements: std.ArrayList(*Stmt),
     pub fn create(allocator: std.mem.Allocator, tokens: []Token) Parser {
-        const stmts = std.ArrayList(Stmt).init(allocator);
+        const stmts = std.ArrayList(*Stmt).init(allocator);
         return Parser{
             .allocator = allocator,
             .tokens = tokens,
             .statements = stmts,
         };
     }
-    pub fn parseStmts(allocator: std.mem.Allocator, tokens: []Token) *std.ArrayList(Stmt) {
+    pub fn parse(allocator: std.mem.Allocator, tokens: []Token) !*std.ArrayList(*Stmt) {
         var parser = Parser.create(allocator, tokens);
         while (!parser.outOfBounds()) {
-            parser.statements.append(parser.statement);
+            const stmt = parser.statement() catch unreachable;
+            try parser.statements.append(stmt);
         }
         return &parser.statements;
-    }
-    // TODO: Delete
-    pub fn parse(allocator: std.mem.Allocator, tokens: []Token) ?*Expr {
-        var parser = Parser.create(allocator, tokens);
-        return parser.expression() catch |err| {
-            return if (isParsingError(err)) null else unreachable;
-        };
     }
     fn expression(self: *Parser) (ParsingError || error{ OutOfMemory, NoSpaceLeft })!*Expr {
         return try self.equality();
     }
-    fn statement(self: *Parser) Stmt {
+    fn statement(self: *Parser) !*Stmt {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();
         return self.expressionStatement();
     }
-    fn printStatement(self: *Parser) Stmt {
-        const value = self.expression();
-        self.consume(TokenType.SEMICOLON) catch |err| {
-            self.handleConsumeError(err, ';');
+    fn printStatement(self: *Parser) !*Stmt {
+        const value = try self.expression();
+        _ = self.consume(TokenType.SEMICOLON) catch |err| {
+            try self.handleConsumeError(err, ';');
+            return err;
         };
-        return try Stmt.Print.create(value);
+        return Stmt.Print.create(self.allocator, value);
     }
-    fn expressionStatement(self: *Parser) Stmt {
-        const value = self.expression();
-        self.consume(TokenType.SEMICOLON) catch |err| {
-            self.handleConsumeError(err, ';');
+    fn expressionStatement(self: *Parser) !*Stmt {
+        const value = try self.expression();
+        _ = self.consume(TokenType.SEMICOLON) catch |err| {
+            try self.handleConsumeError(err, ';');
+            return err;
         };
-        return try Stmt.Print.create(value);
+        return Stmt.Expression.create(self.allocator, value);
     }
     fn equality(self: *Parser) !*Expr {
         var expr = try self.comparison();
@@ -115,7 +111,7 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.LEFT_PAREN})) {
             const expr = try self.expression();
             _ = self.consume(TokenType.RIGHT_PAREN) catch |err| {
-                self.handleConsumeError(err, ')');
+                try self.handleConsumeError(err, ')');
             };
             return try Expr.Grouping.create(self.allocator, expr);
         }
@@ -167,14 +163,14 @@ pub const Parser = struct {
             self.advance();
         }
     }
-    fn handleConsumeError(self: *Parser, err: anyerror, expecting_character: u8) void {
+    fn handleConsumeError(self: *Parser, err: anyerror, expecting_character: u8) !void {
         if (isParsingError(err)) {
             const t = self.peek();
             var buf: [128]u8 = undefined;
             std.debug.print("{s}\n", .{@errorName(err)});
             const where = try std.fmt.bufPrint(&buf, " at '{s}'", .{t.lexeme});
             std.debug.print("{s}\n", .{t.lexeme});
-            const message = try std.fmt.bufPrint(&buf, "Expecting '{c}' after expression", .{expecting_character});
+            const message = try std.fmt.bufPrintZ(&buf, "Expecting '{c}' after expression", .{expecting_character});
             const parse_error = Error{ .line = t.line, .where = where, .message = message };
             parse_error.report();
         } else {
