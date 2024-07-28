@@ -32,8 +32,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
-    const expression = Parser.parse(arena_allocator, tokens.items) orelse
-        try expr.Expr.create(arena_allocator);
+    const expression = Parser.parse(arena_allocator, tokens.items) orelse unreachable;
     var output = std.ArrayList(u8).init(arena_allocator);
     defer output.deinit();
     // const visit = expr.PrintVisitor{ .output = &output };

@@ -65,8 +65,12 @@ pub const Expr = union(enum) {
             .group => |g| visitor.visitGroupingExpr(g),
         };
     }
-    pub fn create(allocator: std.mem.Allocator) !*Expr {
-        return allocator.create(Expr);
+    pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
+        // Not really sure if I should do much handling here, I had some but deleted cause
+        // noticed I got compiler errors anyhow (if i called create with invalid expr_data)
+        const expr = try allocator.create(Expr);
+        expr.* = expr_data;
+        return expr;
     }
 
     pub const Binary = struct {
@@ -76,9 +80,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, left: *Expr, operator: token.Token, right: *Expr) !*Expr {
             const binary = try allocator.create(Binary);
             binary.* = .{ .left = left, .operator = operator, .right = right };
-            const expr = try Expr.create(allocator);
-            expr.* = .{ .binary = binary };
-            return expr;
+            return try Expr.create(allocator, .{ .binary = binary });
         }
     };
     pub const Grouping = struct {
@@ -86,9 +88,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, expression: *Expr) !*Expr {
             const group = try allocator.create(Grouping);
             group.* = .{ .expression = expression };
-            const expr = try Expr.create(allocator);
-            expr.* = .{ .group = group };
-            return expr;
+            return try Expr.create(allocator, .{ .group = group });
         }
     };
     pub const Unary = struct {
@@ -97,9 +97,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, operator: token.Token, expression: *Expr) !*Expr {
             const unary = try allocator.create(Unary);
             unary.* = .{ .expression = expression, .operator = operator };
-            const expr = try Expr.create(allocator);
-            expr.* = .{ .unary = unary };
-            return expr;
+            return try Expr.create(allocator, .{ .unary = unary });
         }
     };
     pub const Literal = struct {
@@ -107,9 +105,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, value: token.Literal) !*Expr {
             const literal = try allocator.create(Literal);
             literal.* = .{ .value = value };
-            const expr = try Expr.create(allocator);
-            expr.* = .{ .literal = literal };
-            return expr;
+            return try Expr.create(allocator, .{ .literal = literal });
         }
     };
 };

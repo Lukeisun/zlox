@@ -1,0 +1,49 @@
+const std = @import("std");
+const token = @import("token.zig");
+const Expr = @import("expression.zig");
+pub const Stmt = union(enum) {
+    expression: *Expression,
+    print: *Print,
+    pub fn checkVisitorAndReturnType(comptime V: anytype) type {
+        if (@typeInfo(V) != .Struct) {
+            @compileError("Expecting struct");
+        }
+        if (!@hasDecl(V, "ReturnType")) {
+            @compileError("Visitor must have a ReturnType field");
+        }
+
+        if (@TypeOf(V.ReturnType) != type) {
+            @compileError("Visitor.ReturnType must be a type");
+        }
+        const required_methods = [_][]const u8{
+            "visitExpressionStmt",
+            "visitPrintStmt",
+        };
+
+        inline for (required_methods) |method| {
+            if (!@hasDecl(V, method)) {
+                @compileError("Visitor is missing " ++ method ++ " method");
+            }
+            const return_type = @typeInfo(@TypeOf(@field(V, method))).Fn.return_type.?;
+            if (return_type != V.ReturnType) {
+                @compileError(method ++ " method must return Visitor.ReturnType");
+            }
+        }
+        return V.ReturnType;
+    }
+    pub fn accept(self: *Stmt, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor.*)) {
+        return switch (self.*) {
+            .expression => |e| visitor.visitExpressionStmt(e),
+            .print => |p| visitor.visitPrintStmt(p),
+        };
+    }
+    pub fn create(allocator: std.mem.Allocator) !*Stmt {
+        return allocator.create(Stmt);
+    }
+    pub const Expression = struct {
+        expression: *Expr,
+    };
+    pub const Print = struct {
+        expression: *Expr,
+    };
+};
