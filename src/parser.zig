@@ -26,16 +26,23 @@ pub const Parser = struct {
             .statements = stmts,
         };
     }
-    pub fn parse(allocator: std.mem.Allocator, tokens: []Token) !*std.ArrayList(*Stmt) {
+    pub fn parse(allocator: std.mem.Allocator, tokens: []Token) *std.ArrayList(*Stmt) {
         var parser = Parser.create(allocator, tokens);
         while (!parser.outOfBounds()) {
-            const stmt = parser.statement() catch unreachable;
-            try parser.statements.append(stmt);
+            const stmt = parser.statement() catch |err| {
+                if (isParsingError(err)) {
+                    parser.statements.clearAndFree();
+                    return &parser.statements;
+                } else {
+                    std.debug.panic("{s}", .{@errorName(err)});
+                }
+            };
+            parser.statements.append(stmt) catch |err| std.debug.panic("{s}", .{@errorName(err)});
         }
         return &parser.statements;
     }
-    fn expression(self: *Parser) (ParsingError || error{ OutOfMemory, NoSpaceLeft })!*Expr {
-        return try self.equality();
+    fn expression(self: *Parser) anyerror!*Expr {
+        return self.equality();
     }
     fn statement(self: *Parser) !*Stmt {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();
@@ -44,16 +51,14 @@ pub const Parser = struct {
     fn printStatement(self: *Parser) !*Stmt {
         const value = try self.expression();
         _ = self.consume(TokenType.SEMICOLON) catch |err| {
-            try self.handleConsumeError(err, ';');
-            return err;
+            return self.handleConsumeError(err, ';');
         };
         return Stmt.Print.create(self.allocator, value);
     }
     fn expressionStatement(self: *Parser) !*Stmt {
         const value = try self.expression();
         _ = self.consume(TokenType.SEMICOLON) catch |err| {
-            try self.handleConsumeError(err, ';');
-            return err;
+            return self.handleConsumeError(err, ';');
         };
         return Stmt.Expression.create(self.allocator, value);
     }
@@ -111,7 +116,7 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.LEFT_PAREN})) {
             const expr = try self.expression();
             _ = self.consume(TokenType.RIGHT_PAREN) catch |err| {
-                try self.handleConsumeError(err, ')');
+                return self.handleConsumeError(err, ')');
             };
             return try Expr.Grouping.create(self.allocator, expr);
         }
@@ -149,7 +154,6 @@ pub const Parser = struct {
     }
     fn consume(self: *Parser, token_type: TokenType) !Token {
         if (self.check(token_type)) return self.advance();
-        // std.debug.print
         return ParsingError.UnexpectedToken;
     }
     fn synchronoize(self: *Parser) void {
@@ -163,19 +167,17 @@ pub const Parser = struct {
             self.advance();
         }
     }
-    fn handleConsumeError(self: *Parser, err: anyerror, expecting_character: u8) !void {
+    fn handleConsumeError(self: *Parser, err: anyerror, expecting_character: u8) anyerror {
         if (isParsingError(err)) {
             const t = self.peek();
             var buf: [128]u8 = undefined;
-            std.debug.print("{s}\n", .{@errorName(err)});
-            const where = try std.fmt.bufPrint(&buf, " at '{s}'", .{t.lexeme});
-            std.debug.print("{s}\n", .{t.lexeme});
+            const where = "";
             const message = try std.fmt.bufPrintZ(&buf, "Expecting '{c}' after expression", .{expecting_character});
             const parse_error = Error{ .line = t.line, .where = where, .message = message };
             parse_error.report();
         } else {
             std.debug.print("{any}\n", .{@errorName(err)});
-            unreachable;
         }
+        return err;
     }
 };

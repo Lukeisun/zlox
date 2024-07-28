@@ -4,6 +4,6 @@ pub const Error = struct {
     where: []u8 = "",
     message: [:0]const u8 = "",
     pub fn report(self: Error) void {
-        std.debug.print("[line: {d}] Error {s}: {s}\n", .{ self.line, self.where, self.message });
+        std.log.err("[line: {d}] {s}: {s}\n", .{ self.line, self.where, self.message });
     }
 };

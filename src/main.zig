@@ -32,7 +32,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
-    const statements = try Parser.parse(arena_allocator, tokens.items);
+    const statements = Parser.parse(arena_allocator, tokens.items);
     var output = std.ArrayList(u8).init(arena_allocator);
     defer output.deinit();
     var interpreter = EvalVisitor.create(arena_allocator);
@@ -49,8 +49,8 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         defer allocator.free(s);
         const tokens = try lexer.lex(allocator, s);
         defer tokens.deinit();
-        try token.debugTokens(tokens.items);
-        const statements = Parser.parse(arena_allocator, tokens.items) catch std.debug.panic("OOM\n", .{});
+        // try token.debugTokens(tokens.items);
+        const statements = Parser.parse(arena_allocator, tokens.items);
         if (statements.items.len == 0) {
             try stdout.writeAll("> ");
             continue;
