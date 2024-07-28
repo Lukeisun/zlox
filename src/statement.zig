@@ -31,19 +31,31 @@ pub const Stmt = union(enum) {
         }
         return V.ReturnType;
     }
+    pub fn create(allocator: std.mem.Allocator, stmt_data: anytype) !*Stmt {
+        const stmt = try allocator.create(Stmt);
+        stmt.* = stmt_data;
+        return stmt;
+    }
     pub fn accept(self: *Stmt, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor.*)) {
         return switch (self.*) {
             .expression => |e| visitor.visitExpressionStmt(e),
             .print => |p| visitor.visitPrintStmt(p),
         };
     }
-    pub fn create(allocator: std.mem.Allocator) !*Stmt {
-        return allocator.create(Stmt);
-    }
     pub const Expression = struct {
         expression: *Expr,
+        pub fn create(allocator: std.mem.Allocator, expression: Expr) !*Expression {
+            const expr = try allocator.create(Expression);
+            expr.* = .{ .expression = expression };
+            return try Stmt.create(allocator, expr);
+        }
     };
     pub const Print = struct {
         expression: *Expr,
+        pub fn create(allocator: std.mem.Allocator, expression: Expr) !*Print {
+            const print = try allocator.create(Print);
+            print.* = .{ .expression = expression };
+            return try Stmt.create(allocator, print);
+        }
     };
 };
