@@ -10,6 +10,7 @@ const RuntimeError = error{
     ExpectingNumbersOrStrings,
     ExpectingBooleans,
     ExpectingStrings,
+    DivisionByZero,
 } || std.fmt.AllocPrintError;
 
 pub const EvalVisitor = struct {
@@ -51,6 +52,7 @@ pub const EvalVisitor = struct {
             },
             TokenType.SLASH => {
                 if (lhs.tagEquals(rhs) and std.meta.activeTag(lhs) == .number) {
+                    if (rhs.number == 0) return self.setLoxError(RuntimeError.DivisionByZero, expr.operator);
                     return Literal{ .number = lhs.number / rhs.number };
                 }
                 rt_error = RuntimeError.ExpectingNumbers;
