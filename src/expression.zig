@@ -5,7 +5,10 @@ pub const Expr = union(enum) {
     unary: *Unary,
     literal: *Literal,
     group: *Grouping,
-    pub fn checkVisitorAndReturnType(comptime V: type) type {
+    pub fn checkVisitorAndReturnType(comptime V: anytype) type {
+        if (@typeInfo(V) != .Struct) {
+            @compileError("sfg");
+        }
         if (!@hasDecl(V, "ReturnType")) {
             @compileError("Visitor must have a ReturnType field");
         }
@@ -54,8 +57,8 @@ pub const Expr = union(enum) {
         allocator.destroy(self);
     }
 
-    pub fn accept(self: Expr, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor)) {
-        return switch (self) {
+    pub fn accept(self: *Expr, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor.*)) {
+        return switch (self.*) {
             .binary => |b| visitor.visitBinaryExpr(b),
             .unary => |u| visitor.visitUnaryExpr(u),
             .literal => |l| visitor.visitLiteralExpr(l),
