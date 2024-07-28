@@ -39,8 +39,8 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     // const visit = expr.PrintVisitor{ .output = &output };
     // if (expression) |e| visit.print(e) else std.debug.print("{any}", .{expression});
     std.debug.print("{s}\n", .{output.items});
-    var visit = EvalVisitor.create(arena_allocator);
-    const ret = try visit.print(expression);
+    var interpreter = EvalVisitor.create(arena_allocator);
+    const ret = try interpreter.interpret(expression);
     var buf: [512]u8 = undefined;
     const val = try ret.toString(&buf);
     std.debug.print("{s}\n", .{val});
@@ -65,8 +65,8 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         // var output = std.ArrayList(u8).init(arena_allocator);
         // defer output.deinit();
         // try stdout.print("{s}\n", .{output.items});
-        var visit = EvalVisitor.create(arena_allocator);
-        const ret = visit.print(expression) catch |err| {
+        var interpreter = EvalVisitor.create(arena_allocator);
+        const ret = interpreter.interpret(expression) catch |err| {
             std.debug.assert(err != error.OutOfMemory);
             try stdout.writeAll("> ");
             continue;

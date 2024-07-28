@@ -16,13 +16,13 @@ const RuntimeError = error{
 pub const EvalVisitor = struct {
     pub const ReturnType = RuntimeError!Literal;
     allocator: std.mem.Allocator,
+    // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
-    // output: *std.ArrayList(u8),
     pub fn create(allocator: std.mem.Allocator) EvalVisitor {
         return EvalVisitor{ .allocator = allocator, .had_runtime_error = false, .run_time_offender = null };
     }
-    pub fn print(self: *@This(), expr: *Expr) ReturnType {
+    pub fn interpret(self: *@This(), expr: *Expr) ReturnType {
         const res = expr.accept(self) catch |err| {
             switch (err) {
                 error.OutOfMemory => std.debug.panic("OOM", .{}),

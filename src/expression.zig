@@ -7,7 +7,7 @@ pub const Expr = union(enum) {
     group: *Grouping,
     pub fn checkVisitorAndReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
-            @compileError("sfg");
+            @compileError("Expecting struct");
         }
         if (!@hasDecl(V, "ReturnType")) {
             @compileError("Visitor must have a ReturnType field");
