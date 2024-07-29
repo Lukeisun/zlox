@@ -15,7 +15,7 @@ const RuntimeError = error{
 } || std.fmt.AllocPrintError;
 
 pub const EvalVisitor = struct {
-    pub const ReturnType = RuntimeError!Literal;
+    pub const ExprReturnType = RuntimeError!Literal;
     allocator: std.mem.Allocator,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
@@ -25,25 +25,23 @@ pub const EvalVisitor = struct {
     }
     pub fn interpret(self: *@This(), statements: *std.ArrayList(*Stmt)) !void {
         for (statements.*.items) |statement| {
-            try self.execute(statement);
+            self.execute(statement) catch |err| {
+                switch (err) {
+                    error.OutOfMemory => std.debug.panic("OOM", .{}),
+                    else => {
+                        const t = self.run_time_offender orelse unreachable;
+                        std.log.err("[line: {d}] Offending Token: {s}\n\t{s}", .{
+                            t.line,
+                            t.lexeme,
+                            @errorName(err),
+                        });
+                        return err;
+                    },
+                }
+            };
         }
-        // const res = expr.accept(self) catch |err| {
-        //     switch (err) {
-        //         error.OutOfMemory => std.debug.panic("OOM", .{}),
-        //         else => {
-        //             const t = self.run_time_offender orelse unreachable;
-        //             std.log.err("[line: {d}] Offending Token: {s}\n\t{s}", .{
-        //                 t.line,
-        //                 t.lexeme,
-        //                 @errorName(err),
-        //             });
-        //             return err;
-        //         },
-        //     }
-        // };
-        // return res;
     }
-    pub fn visitBinaryExpr(self: *@This(), expr: *Expr.Binary) ReturnType {
+    pub fn visitBinaryExpr(self: *@This(), expr: *Expr.Binary) ExprReturnType {
         const lhs = try self.eval(expr.left);
         const rhs = try self.eval(expr.right);
         var rt_error: RuntimeError = undefined;
@@ -110,13 +108,13 @@ pub const EvalVisitor = struct {
         }
         return self.setLoxError(rt_error, expr.operator);
     }
-    pub fn visitGroupingExpr(self: *@This(), expr: *Expr.Grouping) ReturnType {
+    pub fn visitGroupingExpr(self: *@This(), expr: *Expr.Grouping) ExprReturnType {
         return self.eval(expr.expression);
     }
-    pub fn visitLiteralExpr(_: *@This(), expr: *Expr.Literal) ReturnType {
+    pub fn visitLiteralExpr(_: *@This(), expr: *Expr.Literal) ExprReturnType {
         return expr.value;
     }
-    pub fn visitUnaryExpr(self: *@This(), expr: *Expr.Unary) ReturnType {
+    pub fn visitUnaryExpr(self: *@This(), expr: *Expr.Unary) ExprReturnType {
         const rhs = try self.eval(expr.expression);
         var rt_error: RuntimeError = undefined;
         switch (expr.operator.type) {
@@ -133,7 +131,7 @@ pub const EvalVisitor = struct {
         }
         return self.setLoxError(RuntimeError.ExpectingNumber, expr.operator);
     }
-    fn eval(self: *@This(), expr: *Expr) ReturnType {
+    fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }
     fn execute(self: *@This(), stmt: *Stmt) !void {
@@ -145,7 +143,10 @@ pub const EvalVisitor = struct {
     pub fn visitPrintStmt(self: *@This(), stmt: *Stmt.Print) !void {
         const val = try self.eval(stmt.expression);
         var buf: [128]u8 = undefined;
-        std.debug.print("{s}\n", .{try val.toString(&buf)});
+        const str = try val.toString(&buf);
+        const stdout = std.io.getStdOut();
+        try stdout.writeAll(str);
+        try stdout.writeAll("\n");
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
         self.run_time_offender = offender;

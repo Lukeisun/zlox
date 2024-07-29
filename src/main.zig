@@ -56,7 +56,10 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
             continue;
         }
         var interpreter = EvalVisitor.create(arena_allocator);
-        try interpreter.interpret(statements);
+        interpreter.interpret(statements) catch {
+            try stdout.writeAll("> ");
+            continue;
+        };
         try stdout.writeAll("> ");
         _ = arena.reset(.retain_capacity);
     }
@@ -85,3 +88,13 @@ pub fn main() !void {
         },
     }
 }
+// test "Run" {
+// const allocator = std.testing.allocator;
+// const src =
+//     \\ print "1" + "1";
+//     \\ print 2 + 2;
+//     \\ print 1-1;
+//     \\ print "Hello World!";
+// ;
+// const tokens = try lexer.lex(allocator, src);
+// }

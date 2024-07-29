@@ -5,16 +5,16 @@ pub const Expr = union(enum) {
     unary: *Unary,
     literal: *Literal,
     group: *Grouping,
-    pub fn checkVisitorAndReturnType(comptime V: anytype) type {
+    pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");
         }
-        if (!@hasDecl(V, "ReturnType")) {
-            @compileError("Visitor must have a ReturnType field");
+        if (!@hasDecl(V, "ExprReturnType")) {
+            @compileError("Visitor must have a ExprReturnType field");
         }
 
-        if (@TypeOf(V.ReturnType) != type) {
-            @compileError("Visitor.ReturnType must be a type");
+        if (@TypeOf(V.ExprReturnType) != type) {
+            @compileError("Visitor.ExprReturnType must be a type");
         }
         const required_methods = [_][]const u8{
             "visitBinaryExpr",
@@ -28,11 +28,11 @@ pub const Expr = union(enum) {
                 @compileError("Visitor is missing " ++ method ++ " method");
             }
             const return_type = @typeInfo(@TypeOf(@field(V, method))).Fn.return_type.?;
-            if (return_type != V.ReturnType) {
-                @compileError(method ++ " method must return Visitor.ReturnType");
+            if (return_type != V.ExprReturnType) {
+                @compileError(method ++ " method must return Visitor.ExprReturnType");
             }
         }
-        return V.ReturnType;
+        return V.ExprReturnType;
     }
     // for non arena uses
     pub fn destruct(self: *Expr, allocator: std.mem.Allocator) void {
@@ -57,7 +57,7 @@ pub const Expr = union(enum) {
         allocator.destroy(self);
     }
 
-    pub fn accept(self: *Expr, visitor: anytype) checkVisitorAndReturnType(@TypeOf(visitor.*)) {
+    pub fn accept(self: *Expr, visitor: anytype) checkVisitorAndExprReturnType(@TypeOf(visitor.*)) {
         return switch (self.*) {
             .binary => |b| visitor.visitBinaryExpr(b),
             .unary => |u| visitor.visitUnaryExpr(u),
@@ -114,27 +114,27 @@ pub fn panic(err: anyerror) void {
 }
 
 pub const PrintVisitor = struct {
-    pub const ReturnType = void;
+    pub const ExprReturnType = void;
     output: *std.ArrayList(u8),
     pub fn create(output: *std.ArrayList(u8)) PrintVisitor {
         return PrintVisitor{ .output = output };
     }
-    pub fn print(self: PrintVisitor, expr: *Expr) ReturnType {
+    pub fn print(self: PrintVisitor, expr: *Expr) ExprReturnType {
         expr.accept(self);
     }
-    pub fn visitBinaryExpr(self: PrintVisitor, expr: *Expr.Binary) ReturnType {
+    pub fn visitBinaryExpr(self: PrintVisitor, expr: *Expr.Binary) ExprReturnType {
         std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
         expr.left.accept(self);
         std.fmt.format(self.output.writer(), " ", .{}) catch |err| panic(err);
         expr.right.accept(self);
         std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
-    pub fn visitGroupingExpr(self: PrintVisitor, expr: *Expr.Grouping) ReturnType {
+    pub fn visitGroupingExpr(self: PrintVisitor, expr: *Expr.Grouping) ExprReturnType {
         std.fmt.format(self.output.writer(), "(group ", .{}) catch |err| panic(err);
         expr.expression.accept(self);
         std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
     }
-    pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ReturnType {
+    pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ExprReturnType {
         var buf: [128]u8 = undefined;
         if (expr.value.toString(&buf)) |val| {
             std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
@@ -142,7 +142,7 @@ pub const PrintVisitor = struct {
             panic(err);
         }
     }
-    pub fn visitUnaryExpr(self: PrintVisitor, expr: *Expr.Unary) ReturnType {
+    pub fn visitUnaryExpr(self: PrintVisitor, expr: *Expr.Unary) ExprReturnType {
         std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
         expr.expression.accept(self);
         std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
