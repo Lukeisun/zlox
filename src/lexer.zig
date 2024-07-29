@@ -152,7 +152,6 @@ pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(toke
             lex_error.report();
         };
     }
-    std.debug.print("Ate all tokens 😋\n", .{});
     try lexer.addToken(token.TokenType.EOF);
     return tokens;
 }
