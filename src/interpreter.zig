@@ -10,15 +10,21 @@ const RuntimeError = @import("error.zig").RuntimeError;
 pub const EvalVisitor = struct {
     pub const ExprReturnType = (RuntimeError || error{OutOfMemory})!Literal;
     allocator: std.mem.Allocator,
-    environment: Environment,
+    environment: *Environment,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
-    pub fn create(allocator: std.mem.Allocator) EvalVisitor {
-        return .{ .allocator = allocator, .had_runtime_error = false, .run_time_offender = null, .environment = Environment.create(allocator) };
+    // 2 allocators, specifically so environment can be long lived in the REPL.
+    // Probably stupid.
+    pub fn create(arena_allocator: std.mem.Allocator, allocator: std.mem.Allocator) EvalVisitor {
+        return EvalVisitor{
+            .allocator = arena_allocator,
+            .had_runtime_error = false,
+            .run_time_offender = null,
+            .environment = Environment.create(allocator),
+        };
     }
     pub fn interpret(self: *@This(), statements: *const std.ArrayList(*Stmt)) !void {
-        // std.debug.print("{d}\n", .{statements.items.len});
         for (statements.items) |statement| {
             self.execute(statement) catch |err| {
                 switch (err) {
@@ -127,7 +133,9 @@ pub const EvalVisitor = struct {
         return self.setLoxError(RuntimeError.ExpectingNumber, expr.operator);
     }
     pub fn visitVariableExpr(self: *@This(), expr: *Expr.Variable) ExprReturnType {
-        return self.environment.get(expr.name);
+        return self.environment.get(expr.name) catch |err| {
+            return self.setLoxError(err, expr.name);
+        };
     }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
@@ -148,10 +156,14 @@ pub const EvalVisitor = struct {
     }
     pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) !void {
         var value = Literal{ .null = {} };
-        if (stmt.initializer.literal.value != Literal.null) {
+        // var buf: [128]u8 = undefined;
+        if (stmt.initializer.literal.value != .null) {
             value = try self.eval(stmt.initializer);
         }
-        self.environment.define(stmt.name.lexeme, value);
+        self.environment.define(self.allocator, stmt.name.lexeme, value);
+        const it = self.environment.map.iterator();
+        std.debug.print("{any}\n", .{self.environment.map});
+        std.debug.print("{any}\n", .{it});
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
         self.run_time_offender = offender;

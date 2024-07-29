@@ -32,7 +32,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     defer arena.deinit();
     const arena_allocator = arena.allocator();
     const statements = Parser.parse(arena_allocator, tokens.items);
-    var interpreter = EvalVisitor.create(arena_allocator);
+    var interpreter = EvalVisitor.create(arena_allocator, arena_allocator);
     interpreter.interpret(&statements) catch {};
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
@@ -42,6 +42,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
     defer arena.deinit();
     const arena_allocator = arena.allocator();
     try stdout.writeAll("> ");
+    var interpreter = EvalVisitor.create(arena_allocator, arena_allocator);
     while (try stdin.readUntilDelimiterOrEofAlloc(allocator, '\n', 128)) |s| {
         defer allocator.free(s);
         const tokens = try lexer.lex(allocator, s);
@@ -52,14 +53,13 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
             try stdout.writeAll("> ");
             continue;
         }
-        var interpreter = EvalVisitor.create(arena_allocator);
         interpreter.interpret(&statements) catch {
             try stdout.writeAll("> ");
             continue;
         };
         try stdout.writeAll("> ");
-        _ = arena.reset(.retain_capacity);
     }
+    _ = arena.reset(.retain_capacity);
 }
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

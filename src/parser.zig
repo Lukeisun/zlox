@@ -31,7 +31,6 @@ pub const Parser = struct {
         while (!parser.outOfBounds()) {
             const stmt = parser.declaration() catch |err| {
                 if (isParsingError(err)) {
-                    std.debug.panic("yellow", .{});
                     parser.statements.clearAndFree();
                     return parser.statements;
                 } else {

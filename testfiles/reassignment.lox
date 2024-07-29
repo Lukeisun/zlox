@@ -1,0 +1,4 @@
+var x = "pog";
+print x;
+var x = "gop";
+print x;
