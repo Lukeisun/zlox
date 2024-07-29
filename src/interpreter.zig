@@ -1,30 +1,25 @@
+const std = @import("std");
 const Expr = @import("expression.zig").Expr;
 const Literal = @import("token.zig").Literal;
 const TokenType = @import("token.zig").TokenType;
 const Token = @import("token.zig").Token;
 const Stmt = @import("statement.zig").Stmt;
-const std = @import("std");
-const RuntimeError = error{
-    ExpectingNumbers,
-    ExpectingNumber,
-    NonMatchingTypes,
-    ExpectingNumbersOrStrings,
-    ExpectingBooleans,
-    ExpectingStrings,
-    DivisionByZero,
-} || std.fmt.AllocPrintError;
+const Environment = @import("environment.zig").Environment;
+const RuntimeError = @import("error.zig").RuntimeError;
 
 pub const EvalVisitor = struct {
-    pub const ExprReturnType = RuntimeError!Literal;
+    pub const ExprReturnType = (RuntimeError || error{OutOfMemory})!Literal;
     allocator: std.mem.Allocator,
+    environment: Environment,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
     pub fn create(allocator: std.mem.Allocator) EvalVisitor {
-        return EvalVisitor{ .allocator = allocator, .had_runtime_error = false, .run_time_offender = null };
+        return .{ .allocator = allocator, .had_runtime_error = false, .run_time_offender = null, .environment = Environment.create(allocator) };
     }
-    pub fn interpret(self: *@This(), statements: *std.ArrayList(*Stmt)) !void {
-        for (statements.*.items) |statement| {
+    pub fn interpret(self: *@This(), statements: *const std.ArrayList(*Stmt)) !void {
+        // std.debug.print("{d}\n", .{statements.items.len});
+        for (statements.items) |statement| {
             self.execute(statement) catch |err| {
                 switch (err) {
                     error.OutOfMemory => std.debug.panic("OOM", .{}),
@@ -131,6 +126,9 @@ pub const EvalVisitor = struct {
         }
         return self.setLoxError(RuntimeError.ExpectingNumber, expr.operator);
     }
+    pub fn visitVariableExpr(self: *@This(), expr: *Expr.Variable) ExprReturnType {
+        return self.environment.get(expr.name);
+    }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }
@@ -147,6 +145,13 @@ pub const EvalVisitor = struct {
         const stdout = std.io.getStdOut();
         try stdout.writeAll(str);
         try stdout.writeAll("\n");
+    }
+    pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) !void {
+        var value = Literal{ .null = {} };
+        if (stmt.initializer.literal.value != Literal.null) {
+            value = try self.eval(stmt.initializer);
+        }
+        self.environment.define(stmt.name.lexeme, value);
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
         self.run_time_offender = offender;

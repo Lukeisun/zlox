@@ -1,10 +1,12 @@
 const std = @import("std");
+const Token = @import("token.zig").Token;
 const token = @import("token.zig");
 pub const Expr = union(enum) {
     binary: *Binary,
     unary: *Unary,
     literal: *Literal,
     group: *Grouping,
+    variable: *Variable,
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");
@@ -21,6 +23,7 @@ pub const Expr = union(enum) {
             "visitGroupingExpr",
             "visitLiteralExpr",
             "visitUnaryExpr",
+            "visitVariableExpr",
         };
 
         inline for (required_methods) |method| {
@@ -34,28 +37,6 @@ pub const Expr = union(enum) {
         }
         return V.ExprReturnType;
     }
-    // for non arena uses
-    pub fn destruct(self: *Expr, allocator: std.mem.Allocator) void {
-        switch (self.*) {
-            .binary => |b| {
-                b.left.destruct(allocator);
-                b.right.destruct(allocator);
-                allocator.destroy(b);
-            },
-            .unary => |u| {
-                u.expression.destruct(allocator);
-                allocator.destroy(u);
-            },
-            .literal => |l| {
-                allocator.destroy(l);
-            },
-            .group => |g| {
-                g.expression.destruct(allocator);
-                allocator.destroy(g);
-            },
-        }
-        allocator.destroy(self);
-    }
 
     pub fn accept(self: *Expr, visitor: anytype) checkVisitorAndExprReturnType(@TypeOf(visitor.*)) {
         return switch (self.*) {
@@ -63,6 +44,7 @@ pub const Expr = union(enum) {
             .unary => |u| visitor.visitUnaryExpr(u),
             .literal => |l| visitor.visitLiteralExpr(l),
             .group => |g| visitor.visitGroupingExpr(g),
+            .variable => |v| visitor.visitVariableExpr(v),
         };
     }
     pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
@@ -75,9 +57,9 @@ pub const Expr = union(enum) {
 
     pub const Binary = struct {
         left: *Expr,
-        operator: token.Token,
+        operator: Token,
         right: *Expr,
-        pub fn create(allocator: std.mem.Allocator, left: *Expr, operator: token.Token, right: *Expr) !*Expr {
+        pub fn create(allocator: std.mem.Allocator, left: *Expr, operator: Token, right: *Expr) !*Expr {
             const binary = try allocator.create(Binary);
             binary.* = .{ .left = left, .operator = operator, .right = right };
             return try Expr.create(allocator, .{ .binary = binary });
@@ -92,9 +74,9 @@ pub const Expr = union(enum) {
         }
     };
     pub const Unary = struct {
-        operator: token.Token,
+        operator: Token,
         expression: *Expr,
-        pub fn create(allocator: std.mem.Allocator, operator: token.Token, expression: *Expr) !*Expr {
+        pub fn create(allocator: std.mem.Allocator, operator: Token, expression: *Expr) !*Expr {
             const unary = try allocator.create(Unary);
             unary.* = .{ .expression = expression, .operator = operator };
             return try Expr.create(allocator, .{ .unary = unary });
@@ -108,43 +90,15 @@ pub const Expr = union(enum) {
             return try Expr.create(allocator, .{ .literal = literal });
         }
     };
+    pub const Variable = struct {
+        name: Token,
+        pub fn create(allocator: std.mem.Allocator, name: Token) !*Expr {
+            const variable = try allocator.create(Variable);
+            variable.* = .{ .name = name };
+            return try Expr.create(allocator, .{ .variable = variable });
+        }
+    };
 };
 pub fn panic(err: anyerror) void {
     std.debug.panic("Error {s}", .{@errorName(err)});
 }
-
-pub const PrintVisitor = struct {
-    pub const ExprReturnType = void;
-    output: *std.ArrayList(u8),
-    pub fn create(output: *std.ArrayList(u8)) PrintVisitor {
-        return PrintVisitor{ .output = output };
-    }
-    pub fn print(self: PrintVisitor, expr: *Expr) ExprReturnType {
-        expr.accept(self);
-    }
-    pub fn visitBinaryExpr(self: PrintVisitor, expr: *Expr.Binary) ExprReturnType {
-        std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
-        expr.left.accept(self);
-        std.fmt.format(self.output.writer(), " ", .{}) catch |err| panic(err);
-        expr.right.accept(self);
-        std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
-    }
-    pub fn visitGroupingExpr(self: PrintVisitor, expr: *Expr.Grouping) ExprReturnType {
-        std.fmt.format(self.output.writer(), "(group ", .{}) catch |err| panic(err);
-        expr.expression.accept(self);
-        std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
-    }
-    pub fn visitLiteralExpr(self: PrintVisitor, expr: *Expr.Literal) ExprReturnType {
-        var buf: [128]u8 = undefined;
-        if (expr.value.toString(&buf)) |val| {
-            std.fmt.format(self.output.writer(), "{s}", .{val}) catch |err| panic(err);
-        } else |err| {
-            panic(err);
-        }
-    }
-    pub fn visitUnaryExpr(self: PrintVisitor, expr: *Expr.Unary) ExprReturnType {
-        std.fmt.format(self.output.writer(), "({s} ", .{expr.operator.lexeme}) catch |err| panic(err);
-        expr.expression.accept(self);
-        std.fmt.format(self.output.writer(), ")", .{}) catch |err| panic(err);
-    }
-};

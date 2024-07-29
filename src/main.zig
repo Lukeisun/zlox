@@ -28,15 +28,12 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const source = try file.readToEndAlloc(allocator, stat.size);
     const tokens = try lexer.lex(allocator, source);
     defer tokens.deinit();
-
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
     const statements = Parser.parse(arena_allocator, tokens.items);
-    var output = std.ArrayList(u8).init(arena_allocator);
-    defer output.deinit();
     var interpreter = EvalVisitor.create(arena_allocator);
-    try interpreter.interpret(statements);
+    interpreter.interpret(&statements) catch {};
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
@@ -56,7 +53,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
             continue;
         }
         var interpreter = EvalVisitor.create(arena_allocator);
-        interpreter.interpret(statements) catch {
+        interpreter.interpret(&statements) catch {
             try stdout.writeAll("> ");
             continue;
         };
