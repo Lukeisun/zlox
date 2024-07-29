@@ -16,9 +16,9 @@ pub const EvalVisitor = struct {
     run_time_offender: ?Token,
     // 2 allocators, specifically so environment can be long lived in the REPL.
     // Probably stupid.
-    pub fn create(arena_allocator: std.mem.Allocator, allocator: std.mem.Allocator) EvalVisitor {
+    pub fn create(allocator: std.mem.Allocator) EvalVisitor {
         return EvalVisitor{
-            .allocator = arena_allocator,
+            .allocator = allocator,
             .had_runtime_error = false,
             .run_time_offender = null,
             .environment = Environment.create(allocator),
@@ -160,10 +160,10 @@ pub const EvalVisitor = struct {
         if (stmt.initializer.literal.value != .null) {
             value = try self.eval(stmt.initializer);
         }
-        self.environment.define(self.allocator, stmt.name.lexeme, value);
-        const it = self.environment.map.iterator();
+        self.environment.define(stmt.name.lexeme, value);
         std.debug.print("{any}\n", .{self.environment.map});
-        std.debug.print("{any}\n", .{it});
+        // const it = self.environment.map.iterator();
+        // std.debug.print("{any}\n", .{it});
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
         self.run_time_offender = offender;
