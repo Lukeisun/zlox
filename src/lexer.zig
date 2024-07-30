@@ -142,9 +142,11 @@ const Lexer = struct {
         return true;
     }
 };
-pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(token.Token) {
-    var tokens = std.ArrayList(token.Token).init(allocator);
-    var lexer = Lexer.init(source, &tokens);
+pub fn lex(allocator: std.mem.Allocator, source: []const u8) !*std.ArrayList(token.Token) {
+    const tokens_ptr = try allocator.create(std.ArrayList(token.Token));
+    const tokens = std.ArrayList(token.Token).init(allocator);
+    tokens_ptr.* = tokens;
+    var lexer = Lexer.init(source, tokens_ptr);
     while (!lexer.outOfBounds()) {
         lexer.start = lexer.current;
         lexer.eatToken() catch |err| {
@@ -153,7 +155,7 @@ pub fn lex(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList(toke
         };
     }
     try lexer.addToken(token.TokenType.EOF);
-    return tokens;
+    return tokens_ptr;
 }
 test "Multiline Comments" {
     const allocator = std.testing.allocator;

@@ -17,16 +17,20 @@ pub const Parser = struct {
     current: u32 = 0,
     tokens: []Token,
     allocator: std.mem.Allocator,
-    statements: std.ArrayList(*Stmt),
+    statements: *std.ArrayList(Stmt),
     pub fn create(allocator: std.mem.Allocator, tokens: []Token) Parser {
-        const stmts = std.ArrayList(*Stmt).init(allocator);
+        const stmts_ptr = allocator.create(std.ArrayList(Stmt)) catch {
+            std.debug.panic("OOM\n", .{});
+        };
+        const stmts = std.ArrayList(Stmt).init(allocator);
+        stmts_ptr.* = stmts;
         return Parser{
             .allocator = allocator,
             .tokens = tokens,
-            .statements = stmts,
+            .statements = stmts_ptr,
         };
     }
-    pub fn parse(allocator: std.mem.Allocator, tokens: []Token) std.ArrayList(*Stmt) {
+    pub fn parse(allocator: std.mem.Allocator, tokens: []Token) *std.ArrayList(Stmt) {
         var parser = Parser.create(allocator, tokens);
         while (!parser.outOfBounds()) {
             const stmt = parser.declaration() catch |err| {
@@ -44,7 +48,7 @@ pub const Parser = struct {
     fn expression(self: *Parser) anyerror!*Expr {
         return self.equality();
     }
-    fn declaration(self: *Parser) !*Stmt {
+    fn declaration(self: *Parser) !Stmt {
         errdefer {
             std.debug.print("in err defer\n", .{});
             self.synchronoize();
@@ -54,25 +58,25 @@ pub const Parser = struct {
         }
         return self.statement();
     }
-    fn statement(self: *Parser) !*Stmt {
+    fn statement(self: *Parser) !Stmt {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();
         return self.expressionStatement();
     }
-    fn printStatement(self: *Parser) !*Stmt {
+    fn printStatement(self: *Parser) !Stmt {
         const value = try self.expression();
         _ = self.consume(TokenType.SEMICOLON) catch |err| {
             return self.handleConsumeError(err, "Expecting ';' after expression");
         };
-        return Stmt.Print.create(self.allocator, value);
+        return Stmt.Print.create(value);
     }
-    fn expressionStatement(self: *Parser) !*Stmt {
+    fn expressionStatement(self: *Parser) !Stmt {
         const value = try self.expression();
         _ = self.consume(TokenType.SEMICOLON) catch |err| {
             return self.handleConsumeError(err, "Expecting ';' after expression");
         };
-        return Stmt.Expression.create(self.allocator, value);
+        return Stmt.Expression.create(value);
     }
-    fn varDeclaration(self: *Parser) !*Stmt {
+    fn varDeclaration(self: *Parser) !Stmt {
         const name = self.consume(TokenType.IDENTIFIER) catch |err| {
             return self.handleConsumeError(err, "Expecting variable name");
         };
@@ -85,7 +89,7 @@ pub const Parser = struct {
         _ = self.consume(TokenType.SEMICOLON) catch |err| {
             return self.handleConsumeError(err, "Expecting ';' after expression");
         };
-        return Stmt.Var.create(self.allocator, name, initializer);
+        return Stmt.Var.create(name, initializer);
     }
     fn equality(self: *Parser) !*Expr {
         var expr = try self.comparison();
@@ -200,8 +204,6 @@ pub const Parser = struct {
             const t = self.peek();
             // var buf: [128]u8 = undefined;
             const where = "";
-            // const message = try std.fmt.bufPrintZ(&buf, "Expecting '{s}' after expression", .{expecting_character});
-            // const message = try std.fmt.bufPrintZ(&buf, "Expecting '{s}' after expression", .{expecting_character});
             const parse_error = Error{ .line = t.line, .where = where, .message = message };
             parse_error.report();
         } else {

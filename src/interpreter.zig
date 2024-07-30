@@ -10,7 +10,7 @@ const RuntimeError = @import("error.zig").RuntimeError;
 pub const EvalVisitor = struct {
     pub const ExprReturnType = (RuntimeError || error{OutOfMemory})!Literal;
     allocator: std.mem.Allocator,
-    environment: *Environment,
+    environment: Environment,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
@@ -24,7 +24,7 @@ pub const EvalVisitor = struct {
             .environment = Environment.create(allocator),
         };
     }
-    pub fn interpret(self: *@This(), statements: *const std.ArrayList(*Stmt)) !void {
+    pub fn interpret(self: *@This(), statements: *const std.ArrayList(Stmt)) !void {
         for (statements.items) |statement| {
             self.execute(statement) catch |err| {
                 switch (err) {
@@ -140,13 +140,13 @@ pub const EvalVisitor = struct {
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }
-    fn execute(self: *@This(), stmt: *Stmt) !void {
+    fn execute(self: *@This(), stmt: Stmt) !void {
         try stmt.accept(self);
     }
-    pub fn visitExpressionStmt(self: *@This(), stmt: *Stmt.Expression) !void {
+    pub fn visitExpressionStmt(self: *@This(), stmt: Stmt.Expression) !void {
         _ = try self.eval(stmt.expression);
     }
-    pub fn visitPrintStmt(self: *@This(), stmt: *Stmt.Print) !void {
+    pub fn visitPrintStmt(self: *@This(), stmt: Stmt.Print) !void {
         const val = try self.eval(stmt.expression);
         var buf: [128]u8 = undefined;
         const str = try val.toString(&buf);
@@ -154,16 +154,12 @@ pub const EvalVisitor = struct {
         try stdout.writeAll(str);
         try stdout.writeAll("\n");
     }
-    pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) !void {
+    pub fn visitVarStmt(self: *@This(), stmt: Stmt.Var) !void {
         var value = Literal{ .null = {} };
-        // var buf: [128]u8 = undefined;
         if (stmt.initializer.literal.value != .null) {
             value = try self.eval(stmt.initializer);
         }
         self.environment.define(stmt.name.lexeme, value);
-        std.debug.print("{any}\n", .{self.environment.map});
-        // const it = self.environment.map.iterator();
-        // std.debug.print("{any}\n", .{it});
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
         self.run_time_offender = offender;

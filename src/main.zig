@@ -23,36 +23,36 @@ pub const keywords = std.StaticStringMap(token.TokenType).initComptime(.{
     .{ "while", token.TokenType.WHILE },
 });
 pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
-    const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
-    const stat = try file.stat();
-    const source = try file.readToEndAlloc(allocator, stat.size);
-    const tokens = try lexer.lex(allocator, source);
-    defer tokens.deinit();
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
+    const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_only });
+    const stat = try file.stat();
+    defer file.close();
     const arena_allocator = arena.allocator();
+    const source = try file.readToEndAlloc(arena_allocator, stat.size);
+    const tokens = try lexer.lex(arena_allocator, source);
     const statements = Parser.parse(arena_allocator, tokens.items);
     var interpreter = EvalVisitor.create(arena_allocator);
-    interpreter.interpret(&statements) catch {};
+    interpreter.interpret(statements) catch {};
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
     const stdout = std.io.getStdOut().writer();
     const stdin = std.io.getStdIn().reader();
-    // var arena = std.heap.ArenaAllocator.init(allocator);
-    // defer arena.deinit();
-    // const arena_allocator = arena.allocator();
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
+    var interpreter = EvalVisitor.create(arena_allocator);
     try stdout.writeAll("> ");
-    var interpreter = EvalVisitor.create(allocator);
-    while (try stdin.readUntilDelimiterOrEofAlloc(allocator, '\n', 128)) |s| {
-        const tokens = try lexer.lex(allocator, s);
+    while (try stdin.readUntilDelimiterOrEofAlloc(arena_allocator, '\n', 128)) |s| {
+        const tokens = try lexer.lex(arena_allocator, s);
         defer tokens.deinit();
         // try token.debugTokens(tokens.items);
-        const statements = Parser.parse(allocator, tokens.items);
+        const statements = Parser.parse(arena_allocator, tokens.items);
         if (statements.items.len == 0) {
             try stdout.writeAll("> ");
             continue;
         }
-        interpreter.interpret(&statements) catch {
+        interpreter.interpret(statements) catch {
             try stdout.writeAll("> ");
             continue;
         };
