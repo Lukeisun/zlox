@@ -45,9 +45,6 @@ pub const Parser = struct {
         }
         return parser.statements;
     }
-    fn expression(self: *Parser) anyerror!*Expr {
-        return self.equality();
-    }
     fn declaration(self: *Parser) !Stmt {
         errdefer {
             std.debug.print("in err defer\n", .{});
@@ -91,9 +88,32 @@ pub const Parser = struct {
         };
         return Stmt.Var.create(name, initializer);
     }
+    fn expression(self: *Parser) anyerror!*Expr {
+        return self.assignment();
+    }
+    fn assignment(self: *Parser) !*Expr {
+        const expr = try self.equality();
+        if (self.match(&[_]TokenType{TokenType.EQUAL})) {
+            const equals = self.previous();
+            const value = try self.assignment();
+            switch (expr.*) {
+                .variable => |v| {
+                    const name = v.name;
+                    return try Expr.Assign.create(self.allocator, name, value);
+                },
+                else => {
+                    const where = "";
+                    const parse_error = Error{ .line = equals.line, .where = where, .message = "Invalid Assignment Target" };
+                    parse_error.report();
+                },
+            }
+        }
+        return expr;
+    }
     fn equality(self: *Parser) !*Expr {
         var expr = try self.comparison();
-        while (self.match(&[_]TokenType{ TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL })) {
+        const match_arr = [_]TokenType{ TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL };
+        while (self.match(&match_arr)) {
             const op = self.previous();
             const right = try self.comparison();
             expr = try Expr.Binary.create(self.allocator, expr, op, right);
@@ -102,7 +122,8 @@ pub const Parser = struct {
     }
     fn comparison(self: *Parser) !*Expr {
         var expr = try self.term();
-        while (self.match(&[_]TokenType{ TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL })) {
+        const match_arr = [_]TokenType{ TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL };
+        while (self.match(&match_arr)) {
             const op = self.previous();
             const right = try self.term();
             expr = try Expr.Binary.create(self.allocator, expr, op, right);
@@ -111,7 +132,8 @@ pub const Parser = struct {
     }
     fn term(self: *Parser) !*Expr {
         var expr = try self.factor();
-        while (self.match(&[_]TokenType{ TokenType.MINUS, TokenType.PLUS })) {
+        const match_arr = [_]TokenType{ TokenType.MINUS, TokenType.PLUS };
+        while (self.match(&match_arr)) {
             const op = self.previous();
             const right = try self.factor();
             expr = try Expr.Binary.create(self.allocator, expr, op, right);
@@ -120,7 +142,8 @@ pub const Parser = struct {
     }
     fn factor(self: *Parser) !*Expr {
         var expr = try self.unary();
-        while (self.match(&[_]TokenType{ TokenType.SLASH, TokenType.STAR })) {
+        const match_arr = [_]TokenType{ TokenType.SLASH, TokenType.STAR };
+        while (self.match(&match_arr)) {
             const op = self.previous();
             const right = try self.unary();
             expr = try Expr.Binary.create(self.allocator, expr, op, right);
@@ -128,7 +151,8 @@ pub const Parser = struct {
         return expr;
     }
     fn unary(self: *Parser) !*Expr {
-        if (self.match(&[_]TokenType{ TokenType.BANG, TokenType.MINUS })) {
+        const match_arr = [_]TokenType{ TokenType.BANG, TokenType.MINUS };
+        if (self.match(&match_arr)) {
             const op = self.previous();
             const right = try self.unary();
             return try Expr.Unary.create(self.allocator, op, right);
