@@ -14,8 +14,6 @@ pub const EvalVisitor = struct {
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
-    // 2 allocators, specifically so environment can be long lived in the REPL.
-    // Probably stupid.
     pub fn create(allocator: std.mem.Allocator) EvalVisitor {
         return EvalVisitor{
             .allocator = allocator,
