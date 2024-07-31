@@ -31,7 +31,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const arena_allocator = arena.allocator();
     const source = try file.readToEndAlloc(arena_allocator, stat.size);
     const tokens = try lexer.lex(arena_allocator, source);
-    const statements = Parser.parse(arena_allocator, tokens.items);
+    const statements = Parser.parse(arena_allocator, tokens);
     var interpreter = EvalVisitor.create(arena_allocator);
     interpreter.interpret(statements) catch {};
 }
@@ -45,9 +45,8 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
     try stdout.writeAll("> ");
     while (try stdin.readUntilDelimiterOrEofAlloc(arena_allocator, '\n', 128)) |s| {
         const tokens = try lexer.lex(arena_allocator, s);
-        defer tokens.deinit();
         // try token.debugTokens(tokens.items);
-        const statements = Parser.parse(arena_allocator, tokens.items);
+        const statements = Parser.parse(arena_allocator, tokens);
         if (statements.len == 0) {
             try stdout.writeAll("> ");
             continue;
