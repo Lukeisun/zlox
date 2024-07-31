@@ -135,6 +135,13 @@ pub const EvalVisitor = struct {
             return self.setLoxError(err, expr.name);
         };
     }
+    pub fn visitAssignExpr(self: *@This(), expr: *Expr.Assign) ExprReturnType {
+        const value = try self.eval(expr.value);
+        self.environment.assign(expr.name, value) catch |err| {
+            return self.setLoxError(err, expr.name);
+        };
+        return value;
+    }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }

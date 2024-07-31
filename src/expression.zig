@@ -7,7 +7,7 @@ pub const Expr = union(enum) {
     literal: *Literal,
     group: *Grouping,
     variable: *Variable,
-    asssgn: *Assign,
+    assign: *Assign,
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");

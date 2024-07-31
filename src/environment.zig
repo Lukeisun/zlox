@@ -17,4 +17,13 @@ pub const Environment = struct {
             std.debug.panic("OOM", .{});
         };
     }
+    pub fn assign(self: *Environment, name: Token, value: Literal) !void {
+        if (self.map.contains(name.lexeme)) {
+            self.map.put(name.lexeme, value) catch {
+                std.debug.panic("OOM", .{});
+            };
+            return;
+        }
+        return RuntimeError.UndefinedVariable;
+    }
 };
