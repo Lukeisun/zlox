@@ -8,7 +8,7 @@ const Environment = @import("environment.zig").Environment;
 const RuntimeError = @import("error.zig").RuntimeError;
 
 pub const EvalVisitor = struct {
-    pub const ExprReturnType = (RuntimeError || error{OutOfMemory})!Literal;
+    pub const ExprReturnType = RuntimeError!Literal;
     allocator: std.mem.Allocator,
     environment: Environment,
     // probably split this up into a differrent struct?
@@ -22,8 +22,8 @@ pub const EvalVisitor = struct {
             .environment = Environment.create(allocator),
         };
     }
-    pub fn interpret(self: *@This(), statements: *const std.ArrayList(Stmt)) !void {
-        for (statements.items) |statement| {
+    pub fn interpret(self: *@This(), statements: []Stmt) !void {
+        for (statements) |statement| {
             self.execute(statement) catch |err| {
                 switch (err) {
                     error.OutOfMemory => std.debug.panic("OOM", .{}),
@@ -148,16 +148,35 @@ pub const EvalVisitor = struct {
     fn execute(self: *@This(), stmt: Stmt) !void {
         try stmt.accept(self);
     }
-    pub fn visitExpressionStmt(self: *@This(), stmt: Stmt.Expression) !void {
+    fn executeBlock(self: *@This(), statements: []Stmt) !void {
+        var env = Environment.create(self.allocator);
+        var previous_env = self.environment;
+        env.enclosing = &previous_env;
+        self.environment = env;
+        for (statements) |statement| {
+            try self.execute(statement);
+        }
+        self.environment = previous_env;
+    }
+    pub fn visitBlock(self: *@This(), stmt: Stmt.Block) RuntimeError!void {
+        try self.executeBlock(stmt.statements);
+    }
+    pub fn visitExpressionStmt(self: *@This(), stmt: Stmt.Expression) RuntimeError!void {
         _ = try self.eval(stmt.expression);
     }
-    pub fn visitPrintStmt(self: *@This(), stmt: Stmt.Print) !void {
+    pub fn visitPrintStmt(self: *@This(), stmt: Stmt.Print) RuntimeError!void {
         const val = try self.eval(stmt.expression);
         var buf: [128]u8 = undefined;
-        const str = try val.toString(&buf);
+        const str = val.toString(&buf) catch {
+            std.debug.panic("Buffer not big enough\n", .{});
+        };
         const stdout = std.io.getStdOut();
-        try stdout.writeAll(str);
-        try stdout.writeAll("\n");
+        stdout.writeAll(str) catch |err| {
+            std.debug.panic("Error writing to stdout - {s}\n", .{@errorName(err)});
+        };
+        stdout.writeAll("\n") catch |err| {
+            std.debug.panic("Error writing to stdout - {s}\n", .{@errorName(err)});
+        };
     }
     pub fn visitVarStmt(self: *@This(), stmt: Stmt.Var) !void {
         var value = Literal{ .null = {} };

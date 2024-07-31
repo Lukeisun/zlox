@@ -8,6 +8,7 @@ pub const RuntimeError = error{
     ExpectingStrings,
     DivisionByZero,
     UndefinedVariable,
+    OutOfMemory,
 };
 
 pub const Error = struct {

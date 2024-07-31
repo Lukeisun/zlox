@@ -1,0 +1,20 @@
+var a = "hi!";
+{
+	var a = "!ih";
+	print a;
+}
+print a;
+{
+	print a+a;
+}
+
+print "imma firing my";
+{
+	var b = "lazor";
+	print b;
+}
+print b;
+
+{
+	print glorp;
+}

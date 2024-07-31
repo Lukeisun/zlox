@@ -65,7 +65,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, left: *Expr, operator: Token, right: *Expr) !*Expr {
             const binary = try allocator.create(Binary);
             binary.* = .{ .left = left, .operator = operator, .right = right };
-            return try Expr.create(allocator, .{ .binary = binary });
+            return Expr.create(allocator, .{ .binary = binary });
         }
     };
     pub const Grouping = struct {
@@ -73,7 +73,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, expression: *Expr) !*Expr {
             const group = try allocator.create(Grouping);
             group.* = .{ .expression = expression };
-            return try Expr.create(allocator, .{ .group = group });
+            return Expr.create(allocator, .{ .group = group });
         }
     };
     pub const Unary = struct {
@@ -82,7 +82,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, operator: Token, expression: *Expr) !*Expr {
             const unary = try allocator.create(Unary);
             unary.* = .{ .expression = expression, .operator = operator };
-            return try Expr.create(allocator, .{ .unary = unary });
+            return Expr.create(allocator, .{ .unary = unary });
         }
     };
     pub const Literal = struct {
@@ -90,7 +90,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, value: token.Literal) !*Expr {
             const literal = try allocator.create(Literal);
             literal.* = .{ .value = value };
-            return try Expr.create(allocator, .{ .literal = literal });
+            return Expr.create(allocator, .{ .literal = literal });
         }
     };
     pub const Variable = struct {
@@ -98,7 +98,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, name: Token) !*Expr {
             const variable = try allocator.create(Variable);
             variable.* = .{ .name = name };
-            return try Expr.create(allocator, .{ .variable = variable });
+            return Expr.create(allocator, .{ .variable = variable });
         }
     };
     pub const Assign = struct {
@@ -107,7 +107,7 @@ pub const Expr = union(enum) {
         pub fn create(allocator: std.mem.Allocator, name: Token, value: *Expr) !*Expr {
             const assign = try allocator.create(Assign);
             assign.* = .{ .name = name, .value = value };
-            return try Expr.create(allocator, .{ .assign = assign });
+            return Expr.create(allocator, .{ .assign = assign });
         }
     };
 };

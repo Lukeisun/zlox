@@ -48,7 +48,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
         defer tokens.deinit();
         // try token.debugTokens(tokens.items);
         const statements = Parser.parse(arena_allocator, tokens.items);
-        if (statements.items.len == 0) {
+        if (statements.len == 0) {
             try stdout.writeAll("> ");
             continue;
         }
