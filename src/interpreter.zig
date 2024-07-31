@@ -9,6 +9,7 @@ const RuntimeError = @import("error.zig").RuntimeError;
 
 pub const EvalVisitor = struct {
     pub const ExprReturnType = RuntimeError!Literal;
+    repl: bool = false,
     allocator: std.mem.Allocator,
     environment: Environment,
     // probably split this up into a differrent struct?
@@ -22,6 +23,7 @@ pub const EvalVisitor = struct {
             .environment = Environment.create(allocator),
         };
     }
+
     pub fn interpret(self: *@This(), statements: []Stmt) !void {
         for (statements) |statement| {
             self.execute(statement) catch |err| {
@@ -162,27 +164,17 @@ pub const EvalVisitor = struct {
         try self.executeBlock(stmt.statements);
     }
     pub fn visitExpressionStmt(self: *@This(), stmt: Stmt.Expression) RuntimeError!void {
-        _ = try self.eval(stmt.expression);
+        const val = try self.eval(stmt.expression);
+        if (self.repl) {
+            self.print(val);
+        }
     }
     pub fn visitPrintStmt(self: *@This(), stmt: Stmt.Print) RuntimeError!void {
         const val = try self.eval(stmt.expression);
-        var buf: [128]u8 = undefined;
-        const str = val.toString(&buf) catch {
-            std.debug.panic("Buffer not big enough\n", .{});
-        };
-        const stdout = std.io.getStdOut();
-        stdout.writeAll(str) catch |err| {
-            std.debug.panic("Error writing to stdout - {s}\n", .{@errorName(err)});
-        };
-        stdout.writeAll("\n") catch |err| {
-            std.debug.panic("Error writing to stdout - {s}\n", .{@errorName(err)});
-        };
+        self.print(val);
     }
     pub fn visitVarStmt(self: *@This(), stmt: Stmt.Var) !void {
-        var value = Literal{ .null = {} };
-        if (stmt.initializer.literal.value != .null) {
-            value = try self.eval(stmt.initializer);
-        }
+        const value = try self.eval(stmt.initializer);
         self.environment.define(stmt.name.lexeme, value);
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
@@ -204,5 +196,18 @@ pub const EvalVisitor = struct {
             .null => return false,
             else => return true,
         }
+    }
+    fn print(_: *@This(), value: Literal) void {
+        var buf: [128]u8 = undefined;
+        const str = value.toString(&buf) catch {
+            std.debug.panic("Buffer not big enough\n", .{});
+        };
+        const stdout = std.io.getStdOut();
+        stdout.writeAll(str) catch |err| {
+            std.debug.panic("Error writing to stdout - {s}\n", .{@errorName(err)});
+        };
+        stdout.writeAll("\n") catch |err| {
+            std.debug.panic("Error writing to stdout - {s}\n", .{@errorName(err)});
+        };
     }
 };

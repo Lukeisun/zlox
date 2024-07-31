@@ -42,6 +42,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
     defer arena.deinit();
     const arena_allocator = arena.allocator();
     var interpreter = EvalVisitor.create(arena_allocator);
+    interpreter.repl = true;
     try stdout.writeAll("> ");
     while (try stdin.readUntilDelimiterOrEofAlloc(arena_allocator, '\n', 128)) |s| {
         const tokens = try lexer.lex(arena_allocator, s);

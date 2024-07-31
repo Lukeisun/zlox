@@ -8,6 +8,11 @@ print a;
 	print a+a;
 }
 
+var x = 1;
+{ 
+	var x = x + 2;
+	print x;
+}
 print "imma firing my";
 {
 	var b = "lazor";
