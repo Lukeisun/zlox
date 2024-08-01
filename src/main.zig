@@ -44,7 +44,8 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
     var interpreter = EvalVisitor.create(arena_allocator);
     interpreter.repl = true;
     try stdout.writeAll("> ");
-    while (try stdin.readUntilDelimiterOrEofAlloc(arena_allocator, '\n', 128)) |s| {
+    // could just replace this with streamuntildelimitter line in the stdlib
+    while (try stdin.readUntilDelimiterOrEofAlloc(arena_allocator, '\n', 1024)) |s| {
         const tokens = try lexer.lex(arena_allocator, s);
         // try token.debugTokens(tokens.items);
         const statements = Parser.parse(arena_allocator, tokens);

@@ -197,9 +197,8 @@ pub const EvalVisitor = struct {
             else => return true,
         }
     }
-    fn print(_: *@This(), value: Literal) void {
-        var buf: [128]u8 = undefined;
-        const str = value.toString(&buf) catch {
+    fn print(self: *@This(), value: Literal) void {
+        const str = value.toStringAlloc(self.allocator) catch {
             std.debug.panic("Buffer not big enough\n", .{});
         };
         const stdout = std.io.getStdOut();

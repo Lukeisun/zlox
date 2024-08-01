@@ -76,6 +76,16 @@ pub const Literal = union(enum) {
             .null => return "null",
         }
     }
+    pub fn toStringAlloc(self: Literal, allocator: std.mem.Allocator) ![]const u8 {
+        switch (self) {
+            .string => |s| return s,
+            .number => |num| {
+                return try std.fmt.allocPrint(allocator, "{d}", .{num});
+            },
+            .boolean => |b| return if (b) "true" else "false",
+            .null => return "null",
+        }
+    }
     pub fn tagEquals(self: Literal, o: Literal) bool {
         return std.meta.activeTag(self) == std.meta.activeTag(o);
     }
