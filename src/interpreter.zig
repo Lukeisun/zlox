@@ -15,6 +15,7 @@ pub const EvalVisitor = struct {
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
+
     pub fn create(allocator: std.mem.Allocator) EvalVisitor {
         return EvalVisitor{
             .allocator = allocator,
@@ -24,7 +25,7 @@ pub const EvalVisitor = struct {
         };
     }
 
-    pub fn interpret(self: *@This(), statements: []Stmt) !void {
+    pub fn interpret(self: *@This(), statements: []*Stmt) !void {
         for (statements) |statement| {
             self.execute(statement) catch |err| {
                 switch (err) {
@@ -147,10 +148,10 @@ pub const EvalVisitor = struct {
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }
-    fn execute(self: *@This(), stmt: Stmt) !void {
+    fn execute(self: *@This(), stmt: *Stmt) !void {
         try stmt.accept(self);
     }
-    fn executeBlock(self: *@This(), statements: []Stmt) !void {
+    fn executeBlock(self: *@This(), statements: []*Stmt) !void {
         var env = Environment.create(self.allocator);
         var previous_env = self.environment;
         env.enclosing = &previous_env;
@@ -160,20 +161,28 @@ pub const EvalVisitor = struct {
         }
         self.environment = previous_env;
     }
-    pub fn visitBlock(self: *@This(), stmt: Stmt.Block) RuntimeError!void {
+    pub fn visitBlock(self: *@This(), stmt: *Stmt.Block) RuntimeError!void {
         try self.executeBlock(stmt.statements);
     }
-    pub fn visitExpressionStmt(self: *@This(), stmt: Stmt.Expression) RuntimeError!void {
+    pub fn visitExpressionStmt(self: *@This(), stmt: *Stmt.Expression) RuntimeError!void {
         const val = try self.eval(stmt.expression);
         if (self.repl) {
             self.print(val);
         }
     }
-    pub fn visitPrintStmt(self: *@This(), stmt: Stmt.Print) RuntimeError!void {
+    pub fn visitIfStmt(self: *@This(), stmt: *Stmt.If) RuntimeError!void {
+        const condition = try self.eval(stmt.condition);
+        if (isTruthy(condition)) {
+            try self.execute(stmt.then_branch);
+        } else if (stmt.else_branch) |else_branch| {
+            try self.execute(else_branch);
+        }
+    }
+    pub fn visitPrintStmt(self: *@This(), stmt: *Stmt.Print) RuntimeError!void {
         const val = try self.eval(stmt.expression);
         self.print(val);
     }
-    pub fn visitVarStmt(self: *@This(), stmt: Stmt.Var) !void {
+    pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) !void {
         const value = try self.eval(stmt.initializer);
         self.environment.define(stmt.name.lexeme, value);
     }

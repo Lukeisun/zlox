@@ -1,0 +1,11 @@
+if (true) {
+	print "pog";
+} else {
+	print "gop";
+}
+
+if (false) {
+	print "pog";
+} else {
+	print "gop";
+}
