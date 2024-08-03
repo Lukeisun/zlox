@@ -1,0 +1,4 @@
+var x = clock();
+while(true){
+	print clock()-x;
+}

@@ -8,22 +8,31 @@ const Environment = @import("environment.zig").Environment;
 const LoxFunction = @import("callable.zig").LoxFunction;
 const RuntimeError = @import("error.zig").RuntimeError;
 const Callable = @import("callable.zig").Callable;
+const Clock = @import("callable.zig").Clock;
 
 pub const EvalVisitor = struct {
     pub const ExprReturnType = RuntimeError!Literal;
     repl: bool = false,
     allocator: std.mem.Allocator,
     environment: Environment,
+    globals: Environment,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
 
     pub fn create(allocator: std.mem.Allocator) EvalVisitor {
+        var globals = Environment.create(allocator);
+        const z = Clock{};
+        const clock = Callable.create(allocator, .{ .clock = z }) catch {
+            std.debug.panic("OOM\n", .{});
+        };
+        globals.define("clock", Literal{ .callable = clock });
         return EvalVisitor{
             .allocator = allocator,
             .had_runtime_error = false,
             .run_time_offender = null,
-            .environment = Environment.create(allocator),
+            .environment = globals,
+            .globals = globals,
         };
     }
 

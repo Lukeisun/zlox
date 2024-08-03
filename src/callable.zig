@@ -8,14 +8,17 @@ const Stmt = @import("statement.zig").Stmt;
 
 pub const Callable = union(enum) {
     function: *LoxFunction,
+    clock: Clock,
     pub fn call(self: Callable, interpreter: *EvalVisitor, arguments: []Literal) EvalVisitor.ExprReturnType {
         switch (self) {
             .function => |f| return f.call(interpreter, arguments),
+            .clock => |c| return c.call(interpreter, arguments),
         }
     }
     pub fn arity(self: Callable) usize {
         switch (self) {
             .function => |f| return f.arity(),
+            .clock => |c| return c.arity(),
         }
     }
     pub fn create(allocator: std.mem.Allocator, callable_data: anytype) !*Callable {
@@ -46,5 +49,16 @@ pub const LoxFunction = struct {
     }
     pub fn callable(self: *@This()) !*Callable {
         return Callable.create(self.allocator, .{ .function = self });
+    }
+};
+pub const Clock = struct {
+    fn arity() usize {
+        return 0;
+    }
+    pub fn call(_: Clock, _: anytype, _: anytype) EvalVisitor.ExprReturnType {
+        const time: f64 = @floatFromInt(std.time.timestamp());
+        return Literal{
+            .number = time,
+        };
     }
 };

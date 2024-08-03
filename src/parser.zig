@@ -271,7 +271,7 @@ pub const Parser = struct {
     }
     fn finishCall(self: *Parser, callee: *Expr) ParserError!*Expr {
         var list = std.ArrayList(*Expr).init(self.allocator);
-        if (!self.check(TokenType.COMMA)) {
+        if (!self.check(TokenType.RIGHT_PAREN)) {
             const expr = try self.expression();
             try list.append(expr);
             while (self.match(&[_]TokenType{TokenType.COMMA})) {

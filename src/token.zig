@@ -64,7 +64,7 @@ pub fn debugTokens(tokens: []Token) !void {
 }
 pub const Literal = union(enum) {
     string: []const u8,
-    number: f32,
+    number: f64,
     boolean: bool,
     callable: *Callable,
     null,

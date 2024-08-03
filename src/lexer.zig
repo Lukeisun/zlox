@@ -116,7 +116,7 @@ const Lexer = struct {
             self.current += 1;
             while (std.ascii.isDigit(self.peek())) self.current += 1;
         }
-        const float = try std.fmt.parseFloat(f32, self.source[self.start..self.current]);
+        const float = try std.fmt.parseFloat(f64, self.source[self.start..self.current]);
         const literal = token.Literal{ .number = float };
         try self.addTokenWithLiteral(token.TokenType.NUMBER, literal);
     }
