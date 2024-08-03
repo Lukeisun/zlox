@@ -116,6 +116,15 @@ pub const EvalVisitor = struct {
     pub fn visitLiteralExpr(_: *@This(), expr: *Expr.Literal) ExprReturnType {
         return expr.value;
     }
+    pub fn visitLogicalExpr(self: *@This(), expr: *Expr.Logical) ExprReturnType {
+        const left = try self.eval(expr.left);
+        if (expr.operator.type == TokenType.OR) {
+            if (isTruthy(left)) return left;
+        } else {
+            if (!isTruthy(left)) return left;
+        }
+        return self.eval(expr.right);
+    }
     pub fn visitUnaryExpr(self: *@This(), expr: *Expr.Unary) ExprReturnType {
         const rhs = try self.eval(expr.expression);
         var rt_error: RuntimeError = undefined;
@@ -182,9 +191,14 @@ pub const EvalVisitor = struct {
         const val = try self.eval(stmt.expression);
         self.print(val);
     }
-    pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) !void {
+    pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) RuntimeError!void {
         const value = try self.eval(stmt.initializer);
         self.environment.define(stmt.name.lexeme, value);
+    }
+    pub fn visitWhileStmt(self: *@This(), stmt: *Stmt.While) RuntimeError!void {
+        while (isTruthy(try self.eval(stmt.condition))) {
+            try self.execute(stmt.body);
+        }
     }
     fn setLoxError(self: *@This(), err: RuntimeError, offender: Token) RuntimeError {
         self.run_time_offender = offender;

@@ -31,6 +31,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const arena_allocator = arena.allocator();
     const source = try file.readToEndAlloc(arena_allocator, stat.size);
     const tokens = try lexer.lex(arena_allocator, source);
+    // try token.debugTokens(tokens);
     const statements = Parser.parse(arena_allocator, tokens);
     var interpreter = EvalVisitor.create(arena_allocator);
     interpreter.interpret(statements) catch {};

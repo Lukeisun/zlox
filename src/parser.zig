@@ -59,6 +59,7 @@ pub const Parser = struct {
     fn statement(self: *Parser) ParserError!*Stmt {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();
         if (self.match(&[_]TokenType{TokenType.IF})) return self.ifStatement();
+        if (self.match(&[_]TokenType{TokenType.WHILE})) return self.whileStatement();
         if (self.match(&[_]TokenType{TokenType.LEFT_BRACE})) {
             const stmt_list = try self.block();
             return Stmt.Block.create(self.allocator, stmt_list);
@@ -114,6 +115,17 @@ pub const Parser = struct {
         };
         return Stmt.Var.create(self.allocator, name, initializer);
     }
+    fn whileStatement(self: *Parser) !*Stmt {
+        _ = self.consume(TokenType.LEFT_PAREN) catch |err| {
+            return self.handleConsumeError(err, "Expecting '(' after 'while'");
+        };
+        const condition = try self.expression();
+        _ = self.consume(TokenType.RIGHT_PAREN) catch |err| {
+            return self.handleConsumeError(err, "Expecting ')' after while condition");
+        };
+        const body = try self.statement();
+        return Stmt.While.create(self.allocator, condition, body);
+    }
     fn expressionStatement(self: *Parser) !*Stmt {
         const value = try self.expression();
         _ = self.consume(TokenType.SEMICOLON) catch |err| {
@@ -125,7 +137,7 @@ pub const Parser = struct {
         return self.assignment();
     }
     fn assignment(self: *Parser) ParserError!*Expr {
-        const expr = try self.equality();
+        const expr = try self._or();
         if (self.match(&[_]TokenType{TokenType.EQUAL})) {
             const equals = self.previous();
             const value = try self.assignment();
@@ -140,6 +152,26 @@ pub const Parser = struct {
                     parse_error.report();
                 },
             }
+        }
+        return expr;
+    }
+    fn _or(self: *Parser) ParserError!*Expr {
+        var expr = try self._and();
+        const match_arr = [_]TokenType{TokenType.OR};
+        while (self.match(&match_arr)) {
+            const op = self.previous();
+            const right = try self._and();
+            expr = try Expr.Logical.create(self.allocator, expr, op, right);
+        }
+        return expr;
+    }
+    fn _and(self: *Parser) ParserError!*Expr {
+        var expr = try self.equality();
+        const match_arr = [_]TokenType{TokenType.AND};
+        while (self.match(&match_arr)) {
+            const op = self.previous();
+            const right = try self.equality();
+            expr = try Expr.Logical.create(self.allocator, expr, op, right);
         }
         return expr;
     }

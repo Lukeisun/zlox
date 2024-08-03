@@ -8,6 +8,7 @@ pub const Expr = union(enum) {
     group: *Grouping,
     variable: *Variable,
     assign: *Assign,
+    logical: *Logical,
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");
@@ -26,6 +27,7 @@ pub const Expr = union(enum) {
             "visitUnaryExpr",
             "visitVariableExpr",
             "visitAssignExpr",
+            "visitLogicalExpr",
         };
 
         inline for (required_methods) |method| {
@@ -48,6 +50,7 @@ pub const Expr = union(enum) {
             .group => |g| visitor.visitGroupingExpr(g),
             .variable => |v| visitor.visitVariableExpr(v),
             .assign => |a| visitor.visitAssignExpr(a),
+            .logical => |l| visitor.visitLogicalExpr(l),
         };
     }
     pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
@@ -108,6 +111,16 @@ pub const Expr = union(enum) {
             const assign = try allocator.create(Assign);
             assign.* = .{ .name = name, .value = value };
             return Expr.create(allocator, .{ .assign = assign });
+        }
+    };
+    pub const Logical = struct {
+        left: *Expr,
+        operator: Token,
+        right: *Expr,
+        pub fn create(allocator: std.mem.Allocator, left: *Expr, operator: Token, right: *Expr) !*Expr {
+            const logical = try allocator.create(Logical);
+            logical.* = .{ .left = left, .operator = operator, .right = right };
+            return Expr.create(allocator, .{ .logical = logical });
         }
     };
 };

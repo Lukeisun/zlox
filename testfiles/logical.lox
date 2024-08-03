@@ -1,0 +1,9 @@
+print "ors";
+print nil or "hi!";
+print "hi!" or nil;
+
+print "ands";
+print nil and "hi!";
+print "hi!" and nil;
+print "hi" and "ih!";
+print false and "hi";
