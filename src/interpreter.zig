@@ -154,6 +154,10 @@ pub const EvalVisitor = struct {
         };
         return value;
     }
+    pub fn visitCallExpr(self: *@This(), expr: *Expr.Call) ExprReturnType {
+        const x = try self.eval(expr.callee);
+        return x;
+    }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }

@@ -30,6 +30,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     defer file.close();
     const arena_allocator = arena.allocator();
     const source = try file.readToEndAlloc(arena_allocator, stat.size);
+    std.debug.assert(source.len != 0);
     const tokens = try lexer.lex(arena_allocator, source);
     // try token.debugTokens(tokens);
     const statements = Parser.parse(arena_allocator, tokens);
@@ -86,13 +87,11 @@ pub fn main() !void {
         },
     }
 }
-// test "Run" {
-// const allocator = std.testing.allocator;
-// const src =
-//     \\ print "1" + "1";
-//     \\ print 2 + 2;
-//     \\ print 1-1;
-//     \\ print "Hello World!";
-// ;
-// const tokens = try lexer.lex(allocator, src);
-// }
+test "Run" {
+    const allocator = std.testing.allocator;
+    // var buf: [1024]u8 = undefined;
+    _ = std.io.getStdOut();
+    // _ = try stdout.readAll(&buf);
+    try runFile(allocator, "testfiles/for.lox");
+    // std.debug.print("{s}", .{buf});
+}

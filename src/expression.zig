@@ -9,6 +9,7 @@ pub const Expr = union(enum) {
     variable: *Variable,
     assign: *Assign,
     logical: *Logical,
+    call: *Call,
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");
@@ -28,6 +29,7 @@ pub const Expr = union(enum) {
             "visitVariableExpr",
             "visitAssignExpr",
             "visitLogicalExpr",
+            "visitCallExpr",
         };
 
         inline for (required_methods) |method| {
@@ -51,6 +53,7 @@ pub const Expr = union(enum) {
             .variable => |v| visitor.visitVariableExpr(v),
             .assign => |a| visitor.visitAssignExpr(a),
             .logical => |l| visitor.visitLogicalExpr(l),
+            .call => |l| visitor.visitCallExpr(l),
         };
     }
     pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
@@ -121,6 +124,16 @@ pub const Expr = union(enum) {
             const logical = try allocator.create(Logical);
             logical.* = .{ .left = left, .operator = operator, .right = right };
             return Expr.create(allocator, .{ .logical = logical });
+        }
+    };
+    pub const Call = struct {
+        callee: *Expr,
+        paren: Token,
+        arguments: []*Expr,
+        pub fn create(allocator: std.mem.Allocator, callee: *Expr, paren: Token, arguments: []*Expr) !*Expr {
+            const call = try allocator.create(Call);
+            call.* = .{ .callee = callee, .paren = paren, .arguments = arguments };
+            return Expr.create(allocator, .{ .call = call });
         }
     };
 };

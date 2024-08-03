@@ -239,7 +239,31 @@ pub const Parser = struct {
             const right = try self.unary();
             return try Expr.Unary.create(self.allocator, op, right);
         }
-        return self.primary();
+        return self.call();
+    }
+    fn finishCall(self: *Parser, callee: *Expr) ParserError!*Expr {
+        var list = std.ArrayList(*Expr).init(self.allocator);
+        if (!self.check(TokenType.COMMA)) {
+            const expr = try self.expression();
+            try list.append(expr);
+            while (self.match(&[_]TokenType{TokenType.COMMA})) {
+                try list.append(try self.expression());
+            }
+        }
+        const paren = try self.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments");
+        const slice = try list.toOwnedSlice();
+        return Expr.Call.create(self.allocator, callee, paren, slice);
+    }
+    fn call(self: *Parser) ParserError!*Expr {
+        var expr = try self.primary();
+        while (true) {
+            if (self.match(&[_]TokenType{TokenType.LEFT_PAREN})) {
+                expr = try self.finishCall(expr);
+            } else {
+                break;
+            }
+        }
+        return expr;
     }
     fn primary(self: *Parser) ParserError!*Expr {
         if (self.match(&[_]TokenType{TokenType.FALSE})) return try Expr.Literal.create(self.allocator, Literal{ .boolean = false });
