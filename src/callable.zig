@@ -2,14 +2,14 @@ const std = @import("std");
 
 const Literal = @import("token.zig").Literal;
 const Expr = @import("expression.zig").Expr;
-const EvalVisitor = @import("interpreter.zig").EvalVisitor;
+const Interpreter = @import("interpreter.zig").Interpreter;
 const Environment = @import("environment.zig").Environment;
 const Stmt = @import("statement.zig").Stmt;
 
 pub const Callable = union(enum) {
     function: *LoxFunction,
     clock: Clock,
-    pub fn call(self: Callable, interpreter: *EvalVisitor, arguments: []Literal) EvalVisitor.ExprReturnType {
+    pub fn call(self: Callable, interpreter: *Interpreter, arguments: []Literal) Interpreter.ExprReturnType {
         switch (self) {
             .function => |f| return f.call(interpreter, arguments),
             .clock => |c| return c.call(interpreter, arguments),
@@ -31,7 +31,7 @@ pub const Callable = union(enum) {
 pub const LoxFunction = struct {
     declaration: *Stmt.Function,
     allocator: std.mem.Allocator,
-    fn call(self: LoxFunction, interpreter: *EvalVisitor, arguments: []Literal) EvalVisitor.ExprReturnType {
+    fn call(self: LoxFunction, interpreter: *Interpreter, arguments: []Literal) Interpreter.ExprReturnType {
         var env = Environment.create(self.allocator);
         for (self.declaration.params, 0..) |param, i| {
             env.define(param.lexeme, arguments[i]);
@@ -55,7 +55,7 @@ pub const Clock = struct {
     fn arity() usize {
         return 0;
     }
-    pub fn call(_: Clock, _: anytype, _: anytype) EvalVisitor.ExprReturnType {
+    pub fn call(_: Clock, _: anytype, _: anytype) Interpreter.ExprReturnType {
         const time: f64 = @floatFromInt(std.time.timestamp());
         return Literal{
             .number = time,

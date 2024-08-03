@@ -3,7 +3,7 @@ const lexer = @import("lexer.zig");
 const token = @import("token.zig");
 const expr = @import("expression.zig");
 const Parser = @import("parser.zig").Parser;
-const EvalVisitor = @import("interpreter.zig").EvalVisitor;
+const Interpreter = @import("interpreter.zig").Interpreter;
 pub const keywords = std.StaticStringMap(token.TokenType).initComptime(.{
     .{ "and", token.TokenType.AND },
     .{ "class", token.TokenType.CLASS },
@@ -34,7 +34,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     const tokens = try lexer.lex(arena_allocator, source);
     // try token.debugTokens(tokens);
     const statements = Parser.parse(arena_allocator, tokens);
-    var interpreter = EvalVisitor.create(arena_allocator);
+    var interpreter = Interpreter.create(arena_allocator);
     interpreter.interpret(statements) catch {};
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
@@ -43,7 +43,7 @@ pub fn runPrompt(allocator: std.mem.Allocator) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
-    var interpreter = EvalVisitor.create(arena_allocator);
+    var interpreter = Interpreter.create(arena_allocator);
     interpreter.repl = true;
     try stdout.writeAll("> ");
     // could just replace this with streamuntildelimitter line in the stdlib
