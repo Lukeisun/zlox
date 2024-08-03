@@ -1,4 +1,5 @@
 const std = @import("std");
+const Callable = @import("callable.zig").Callable;
 pub const TokenType = enum(u8) {
     // Single Character Tokens
     LEFT_PAREN,
@@ -65,6 +66,7 @@ pub const Literal = union(enum) {
     string: []const u8,
     number: f32,
     boolean: bool,
+    callable: *Callable,
     null,
     pub fn toString(self: Literal, buf: []u8) ![]const u8 {
         switch (self) {
@@ -74,6 +76,7 @@ pub const Literal = union(enum) {
             },
             .boolean => |b| return if (b) "true" else "false",
             .null => return "null",
+            .callable => return "callable",
         }
     }
     pub fn toStringAlloc(self: Literal, allocator: std.mem.Allocator) ![]const u8 {
@@ -84,6 +87,7 @@ pub const Literal = union(enum) {
             },
             .boolean => |b| return if (b) "true" else "false",
             .null => return "null",
+            .callable => return "callable",
         }
     }
     pub fn tagEquals(self: Literal, o: Literal) bool {

@@ -8,6 +8,7 @@ pub const Stmt = union(enum) {
     block: *Block,
     if_stmt: *If,
     while_stmt: *While,
+    function: *Function,
     pub fn accept(self: Stmt, visitor: anytype) !void {
         return switch (self) {
             .expression => |e| try visitor.visitExpressionStmt(e),
@@ -16,6 +17,7 @@ pub const Stmt = union(enum) {
             .block => |b| try visitor.visitBlock(b),
             .if_stmt => |i| try visitor.visitIfStmt(i),
             .while_stmt => |w| try visitor.visitWhileStmt(w),
+            .function => |f| try visitor.visitFunctionStmt(f),
         };
     }
     pub fn create(allocator: std.mem.Allocator, stmt_data: anytype) !*Stmt {
@@ -80,6 +82,16 @@ pub const Stmt = union(enum) {
             const while_stmt = try allocator.create(While);
             while_stmt.* = .{ .condition = condition, .body = body };
             return Stmt.create(allocator, .{ .while_stmt = while_stmt });
+        }
+    };
+    pub const Function = struct {
+        name: Token,
+        params: []Token,
+        body: []*Stmt,
+        pub fn create(allocator: std.mem.Allocator, name: Token, params: []Token, body: []*Stmt) !*Stmt {
+            const function = try allocator.create(Function);
+            function.* = .{ .name = name, .params = params, .body = body };
+            return Stmt.create(allocator, .{ .function = function });
         }
     };
 };

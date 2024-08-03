@@ -9,6 +9,7 @@ pub const RuntimeError = error{
     DivisionByZero,
     UndefinedVariable,
     OutOfMemory,
+    NotFnOrClass,
 };
 
 pub const Error = struct {

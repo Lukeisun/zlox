@@ -51,6 +51,9 @@ pub const Parser = struct {
             std.debug.print("in err defer\n", .{});
             self.synchronoize();
         }
+        if (self.match(&[_]TokenType{TokenType.FUN})) {
+            return self.function("function");
+        }
         if (self.match(&[_]TokenType{TokenType.VAR})) {
             return self.varDeclaration();
         }
@@ -149,6 +152,31 @@ pub const Parser = struct {
         const value = try self.expression();
         _ = try self.consume(TokenType.SEMICOLON, "Expecting ';' after expression");
         return Stmt.Expression.create(self.allocator, value);
+    }
+    fn function(self: *Parser, kind: []const u8) !*Stmt {
+        const message_ident = try std.fmt.allocPrint(self.allocator, "Expecting {s} name", .{kind});
+        const name = try self.consume(TokenType.IDENTIFIER, message_ident);
+        const message_l_paren = try std.fmt.allocPrint(self.allocator, "Expecting '(' after {s} name", .{kind});
+        _ = try self.consume(TokenType.LEFT_PAREN, message_l_paren);
+        var parameters = std.ArrayList(Token).init(self.allocator);
+        if (!self.check(TokenType.RIGHT_PAREN)) {
+            try parameters.append(try self.consume(TokenType.IDENTIFIER, "Expect parameter name."));
+            while (self.match(&[_]TokenType{TokenType.COMMA})) {
+                if (parameters.items.len >= 255) {
+                    const t = self.peek();
+                    const where = "";
+                    const parse_error = Error{ .line = t.line, .where = where, .message = "Cant have more than 255 arguments" };
+                    parse_error.report();
+                }
+                try parameters.append(try self.consume(TokenType.IDENTIFIER, "Expect parameter name."));
+            }
+        }
+        _ = try self.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters");
+        const message_l_brace = try std.fmt.allocPrint(self.allocator, "Expect '{{' after {s} body", .{kind});
+        _ = try self.consume(TokenType.LEFT_BRACE, message_l_brace);
+        const body = try self.block();
+        const slice = try parameters.toOwnedSlice();
+        return Stmt.Function.create(self.allocator, name, slice, body);
     }
     fn expression(self: *Parser) ParserError!*Expr {
         return self.assignment();
@@ -252,6 +280,12 @@ pub const Parser = struct {
         }
         const paren = try self.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments");
         const slice = try list.toOwnedSlice();
+        if (slice.len >= 255) {
+            const t = self.peek();
+            const where = "";
+            const parse_error = Error{ .line = t.line, .where = where, .message = "Cant have more than 255 arguments" };
+            parse_error.report();
+        }
         return Expr.Call.create(self.allocator, callee, paren, slice);
     }
     fn call(self: *Parser) ParserError!*Expr {

@@ -5,7 +5,9 @@ const TokenType = @import("token.zig").TokenType;
 const Token = @import("token.zig").Token;
 const Stmt = @import("statement.zig").Stmt;
 const Environment = @import("environment.zig").Environment;
+const LoxFunction = @import("callable.zig").LoxFunction;
 const RuntimeError = @import("error.zig").RuntimeError;
+const Callable = @import("callable.zig").Callable;
 
 pub const EvalVisitor = struct {
     pub const ExprReturnType = RuntimeError!Literal;
@@ -155,8 +157,17 @@ pub const EvalVisitor = struct {
         return value;
     }
     pub fn visitCallExpr(self: *@This(), expr: *Expr.Call) ExprReturnType {
-        const x = try self.eval(expr.callee);
-        return x;
+        var callee = try self.eval(expr.callee);
+        var arguments = std.ArrayList(Literal).init(self.allocator);
+        for (expr.arguments) |arg| {
+            const res = try self.eval(arg);
+            try arguments.append(res);
+        }
+        if (std.meta.activeTag(callee) != .callable) {
+            return self.setLoxError(RuntimeError.NotFnOrClass, expr.paren);
+        }
+        const slice = try arguments.toOwnedSlice();
+        return callee.callable.call(self, slice);
     }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
@@ -164,24 +175,29 @@ pub const EvalVisitor = struct {
     fn execute(self: *@This(), stmt: *Stmt) !void {
         try stmt.accept(self);
     }
-    fn executeBlock(self: *@This(), statements: []*Stmt) !void {
-        var env = Environment.create(self.allocator);
+    pub fn executeBlock(self: *@This(), statements: []*Stmt, env: *Environment) !void {
         var previous_env = self.environment;
         env.enclosing = &previous_env;
-        self.environment = env;
+        self.environment = env.*;
         for (statements) |statement| {
             try self.execute(statement);
         }
         self.environment = previous_env;
     }
     pub fn visitBlock(self: *@This(), stmt: *Stmt.Block) RuntimeError!void {
-        try self.executeBlock(stmt.statements);
+        var env = Environment.create(self.allocator);
+        try self.executeBlock(stmt.statements, &env);
     }
     pub fn visitExpressionStmt(self: *@This(), stmt: *Stmt.Expression) RuntimeError!void {
         const val = try self.eval(stmt.expression);
         if (self.repl) {
             self.print(val);
         }
+    }
+    pub fn visitFunctionStmt(self: *@This(), stmt: *Stmt.Function) RuntimeError!void {
+        const fun = try LoxFunction.create(self.allocator, stmt);
+        const x = Literal{ .callable = try fun.callable() };
+        self.environment.define(stmt.name.lexeme, x);
     }
     pub fn visitIfStmt(self: *@This(), stmt: *Stmt.If) RuntimeError!void {
         const condition = try self.eval(stmt.condition);
@@ -215,6 +231,8 @@ pub const EvalVisitor = struct {
             .number => if (u.tagEquals(v)) u.number == v.number else return RuntimeError.ExpectingNumbers,
             .boolean => if (u.tagEquals(v)) u.boolean == v.boolean else return RuntimeError.ExpectingBooleans,
             .string => if (u.tagEquals(v)) std.mem.eql(u8, u.string, v.string) else return RuntimeError.ExpectingStrings,
+            // TODO: fix
+            .callable => unreachable,
         };
     }
     fn isTruthy(literal: Literal) bool {
