@@ -121,14 +121,29 @@ pub const Parser = struct {
         } else {
             initializer = try self.expressionStatement();
         }
-        var condition: ?*Expr = null;
-        if (self.check(TokenType.SEMICOLON)) {
-            condition = try self.expression();
+        var maybeCondition: ?*Expr = null;
+        if (!self.check(TokenType.SEMICOLON)) {
+            maybeCondition = try self.expression();
         }
-        _ = try self.consume(TokenType.SEMICOLON, "Expecting ';' after for clauses");
-        // const condition = try self.expression();
+        _ = try self.consume(TokenType.SEMICOLON, "Expecting ';' after loop condition");
+        var increment: ?*Expr = null;
+        if (!self.check(TokenType.RIGHT_PAREN)) {
+            increment = try self.expression();
+        }
         _ = try self.consume(TokenType.RIGHT_PAREN, "Expecting ')' after for clauses");
-        return initializer.?;
+        var body = try self.statement();
+        if (increment) |i| {
+            const stmt = try Stmt.Expression.create(self.allocator, i);
+            var temp_body = [2]*Stmt{ body, stmt };
+            body = try Stmt.Block.createWithArr(self.allocator, &temp_body);
+        }
+        const condition = maybeCondition orelse try Expr.Literal.create(self.allocator, Literal.null);
+        body = try Stmt.While.create(self.allocator, condition, body);
+        if (initializer) |i| {
+            var temp_body = [2]*Stmt{ i, body };
+            body = try Stmt.Block.createWithArr(self.allocator, &temp_body);
+        }
+        return body;
     }
     fn expressionStatement(self: *Parser) !*Stmt {
         const value = try self.expression();

@@ -55,6 +55,12 @@ pub const Stmt = union(enum) {
             block.* = .{ .statements = statements };
             return Stmt.create(allocator, .{ .block = block });
         }
+        pub fn createWithArr(allocator: std.mem.Allocator, statementsArr: []*Stmt) !*Stmt {
+            const block = try allocator.create(Block);
+            const statements = try allocator.dupe(*Stmt, statementsArr);
+            block.* = .{ .statements = statements };
+            return Stmt.create(allocator, .{ .block = block });
+        }
     };
     pub const If = struct {
         condition: *Expr,
