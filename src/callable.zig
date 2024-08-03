@@ -52,7 +52,7 @@ pub const LoxFunction = struct {
     }
 };
 pub const Clock = struct {
-    fn arity() usize {
+    fn arity(_: Clock) usize {
         return 0;
     }
     pub fn call(_: Clock, _: anytype, _: anytype) Interpreter.ExprReturnType {

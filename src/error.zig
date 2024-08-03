@@ -10,6 +10,7 @@ pub const RuntimeError = error{
     UndefinedVariable,
     OutOfMemory,
     NotFnOrClass,
+    MismatchedArity,
 };
 
 pub const Error = struct {

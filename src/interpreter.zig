@@ -175,6 +175,10 @@ pub const Interpreter = struct {
         if (std.meta.activeTag(callee) != .callable) {
             return self.setLoxError(RuntimeError.NotFnOrClass, expr.paren);
         }
+        if (arguments.items.len != callee.callable.arity()) {
+            std.log.err("Expected {d} arguments but got {d}", .{ callee.callable.arity(), arguments.items.len });
+            return self.setLoxError(RuntimeError.MismatchedArity, expr.paren);
+        }
         const slice = try arguments.toOwnedSlice();
         return callee.callable.call(self, slice);
     }
