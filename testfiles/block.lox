@@ -13,6 +13,11 @@ var x = 1;
 	var x = x + 2;
 	print x;
 }
+{
+ var x = 2;
+ var x = "2s";
+ print x;
+}
 print "imma firing my";
 {
 	var b = "lazor";

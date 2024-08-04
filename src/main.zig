@@ -38,6 +38,7 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     var interpreter = Interpreter.create(arena_allocator);
     var resolver = Resolver.create(arena_allocator, &interpreter);
     resolver.resolveList(statements);
+    if (resolver.had_error) return;
     interpreter.interpret(statements) catch {};
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {

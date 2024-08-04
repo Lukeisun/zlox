@@ -13,13 +13,16 @@ const _callable = @import("callable.zig");
 const LoxFunction = _callable.LoxFunction;
 const Callable = _callable.Callable;
 
+const FunctionType = enum { NONE, FUNCTION };
 // Really need to review how this actually works,
 // I sort of get it? but not really
 pub const Resolver = struct {
     pub const ExprReturnType = void;
     interpreter: *Interpreter,
     scopes: std.ArrayList(*std.StringHashMap(bool)),
+    currentFunction: FunctionType = FunctionType.NONE,
     allocator: std.mem.Allocator,
+    had_error: bool = false,
     pub fn create(allocator: std.mem.Allocator, interpreter: *Interpreter) Resolver {
         const scopes = std.ArrayList(*std.StringHashMap(bool)).init(allocator);
         return .{
@@ -39,7 +42,7 @@ pub const Resolver = struct {
     pub fn visitFunctionStmt(self: *Resolver, stmt: *Stmt.Function) !void {
         self.declare(stmt.name);
         self.define(stmt.name);
-        self.resolveFunction(stmt);
+        self.resolveFunction(stmt, FunctionType.FUNCTION);
     }
     pub fn visitIfStmt(self: *Resolver, stmt: *Stmt.If) !void {
         self.resolveExpr(stmt.condition);
@@ -50,6 +53,12 @@ pub const Resolver = struct {
         self.resolveExpr(stmt.expression);
     }
     pub fn visitReturnStmt(self: *Resolver, stmt: *Stmt.Return) !void {
+        if (self.currentFunction == .NONE) {
+            self.had_error = true;
+            const where = "";
+            const resolve_error = Error{ .line = stmt.keyword.line, .where = where, .message = "Can't return from top level code" };
+            resolve_error.report();
+        }
         if (stmt.value) |value| self.resolveExpr(value);
     }
     pub fn visitVarStmt(self: *Resolver, stmt: *Stmt.Var) !void {
@@ -90,6 +99,7 @@ pub const Resolver = struct {
         if (self.scopes.items.len != 0) {
             const b = (self.scopes.getLast().get(expr.name.lexeme)) orelse true;
             if (!b) {
+                self.had_error = true;
                 const where = "";
                 const resolve_error = Error{ .line = expr.name.line, .where = where, .message = "Can't read local var in its own initializer" };
                 resolve_error.report();
@@ -124,6 +134,7 @@ pub const Resolver = struct {
         if (self.scopes.items.len == 0) return;
         var scope = self.scopes.getLast();
         if (scope.get(name.lexeme)) |_| {
+            self.had_error = true;
             const where = "";
             const resolve_error = Error{ .line = name.line, .where = where, .message = "Already a varaible with this name in scope" };
             resolve_error.report();
@@ -139,7 +150,9 @@ pub const Resolver = struct {
             std.debug.panic("OOM", .{});
         };
     }
-    fn resolveFunction(self: *Resolver, stmt: *Stmt.Function) void {
+    fn resolveFunction(self: *Resolver, stmt: *Stmt.Function, function_type: FunctionType) void {
+        const enclosingFunction = self.currentFunction;
+        self.currentFunction = function_type;
         self.beginScope();
         for (stmt.params) |param| {
             self.declare(param);
@@ -147,6 +160,7 @@ pub const Resolver = struct {
         }
         self.resolveList(stmt.body);
         self.endScope();
+        self.currentFunction = enclosingFunction;
     }
     fn resolveLocal(self: *Resolver, expr: Expr, name: Token) void {
         if (self.scopes.items.len == 0) return;

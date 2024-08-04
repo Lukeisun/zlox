@@ -10,9 +10,3 @@ var counter = makeCounter();
 counter();
 counter();
 
-fun scope(a) {
- print a;
- var a = "local";
- print a;
-}
-scope("s");

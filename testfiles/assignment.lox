@@ -4,5 +4,3 @@ var c = 3;
 var d = 4;
 print a = b + c + d;
 print a = b = c+d;
-var x;
-print x;
