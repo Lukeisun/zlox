@@ -11,3 +11,7 @@ fun lol() {
 	print "lol";
 }
 lol();
+print lol;
+print sayHi;
+print add;
+print clock;

@@ -22,6 +22,13 @@ pub const Callable = union(enum) {
             .clock => |c| return c.arity(),
         }
     }
+    pub fn toString(self: Callable) []const u8 {
+        switch (self) {
+            .function => |f| return f.toString(),
+            .clock => |c| return c.toString(),
+        }
+    }
+
     pub fn create(allocator: std.mem.Allocator, callable_data: anytype) !*Callable {
         const callable = try allocator.create(Callable);
         callable.* = callable_data;
@@ -55,6 +62,11 @@ pub const LoxFunction = struct {
         fun.* = .{ .allocator = allocator, .declaration = declaration };
         return fun;
     }
+    pub fn toString(self: *@This()) []const u8 {
+        return std.fmt.allocPrint(self.allocator, "<fn {s}>", .{self.declaration.name.lexeme}) catch {
+            std.debug.panic("OOM", .{});
+        };
+    }
     pub fn callable(self: *@This()) !*Callable {
         return Callable.create(self.allocator, .{ .function = self });
     }
@@ -68,5 +80,9 @@ pub const Clock = struct {
         return Literal{
             .number = time,
         };
+    }
+    pub fn toString(_: @This()) []const u8 {
+        const s: []const u8 = "<native fn>";
+        return s;
     }
 };

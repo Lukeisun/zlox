@@ -87,7 +87,7 @@ pub const Literal = union(enum) {
             },
             .boolean => |b| return if (b) "true" else "false",
             .null => return "null",
-            .callable => return "callable",
+            .callable => |c| return c.toString(),
         }
     }
     pub fn tagEquals(self: Literal, o: Literal) bool {
