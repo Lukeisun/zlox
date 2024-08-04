@@ -33,10 +33,20 @@ pub const Environment = struct {
 
         return RuntimeError.UndefinedVariable;
     }
+    pub fn getAt(self: *Environment, distance: usize, name: []const u8) Literal {
+        return self.ancestor(distance).map.get(name) orelse Literal.null;
+    }
     pub fn define(self: *Environment, name: []const u8, value: Literal) void {
         self.map.put(name, value) catch {
             std.debug.panic("OOM", .{});
         };
+    }
+    pub fn ancestor(self: *Environment, distance: usize) *Environment {
+        var env = self;
+        for (0..distance) |_| {
+            env = env.enclosing.?;
+        }
+        return env;
     }
     pub fn assign(self: *Environment, name: Token, value: Literal) !void {
         if (self.map.contains(name.lexeme)) {
@@ -49,6 +59,11 @@ pub const Environment = struct {
             return enclosing.assign(name, value);
         }
         return RuntimeError.UndefinedVariable;
+    }
+    pub fn assignAt(self: *Environment, distance: usize, name: Token, value: Literal) void {
+        self.ancestor(distance).map.put(name.lexeme, value) catch {
+            std.debug.panic("OOM", .{});
+        };
     }
     pub fn print(self: *Environment) void {
         var it = self.map.iterator();

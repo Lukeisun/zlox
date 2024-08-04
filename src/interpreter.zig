@@ -18,24 +18,27 @@ pub const Interpreter = struct {
     allocator: std.mem.Allocator,
     environment: *Environment,
     globals: *Environment,
+    locals: std.AutoHashMap(Expr, usize),
+    return_value: ?Literal = null,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
-    return_value: ?Literal = null,
 
     pub fn create(allocator: std.mem.Allocator) Interpreter {
-        var globals = Environment.create(allocator);
+        const globals = Environment.create(allocator);
         const z = Clock{};
         const clock = Callable.create(allocator, .{ .clock = z }) catch {
             std.debug.panic("OOM\n", .{});
         };
         globals.define("clock", Literal{ .callable = clock });
+        const locals = std.AutoHashMap(Expr, usize).init(allocator);
         return Interpreter{
             .allocator = allocator,
             .had_runtime_error = false,
             .run_time_offender = null,
             .environment = globals,
             .globals = globals,
+            .locals = locals,
         };
     }
 
@@ -45,7 +48,7 @@ pub const Interpreter = struct {
                 switch (err) {
                     error.OutOfMemory => std.debug.panic("OOM", .{}),
                     else => {
-                        const t = self.run_time_offender orelse unreachable;
+                        const t = self.run_time_offender orelse continue;
                         std.log.err("[line: {d}] Offending Token: {s}\n\t{s}", .{
                             t.line,
                             t.lexeme,
@@ -158,15 +161,24 @@ pub const Interpreter = struct {
         return self.setLoxError(RuntimeError.ExpectingNumber, expr.operator);
     }
     pub fn visitVariableExpr(self: *@This(), expr: *Expr.Variable) ExprReturnType {
-        return self.environment.get(expr.name) catch |err| {
-            return self.setLoxError(err, expr.name);
-        };
+        return self.lookUpVariable(expr.name, Expr{ .variable = expr });
+    }
+    fn lookUpVariable(self: *@This(), name: Token, expr: Expr) ExprReturnType {
+        const maybeDist = self.locals.get(expr);
+        if (maybeDist) |dist| {
+            return self.environment.getAt(dist, name.lexeme);
+        } else {
+            return self.globals.get(name);
+        }
     }
     pub fn visitAssignExpr(self: *@This(), expr: *Expr.Assign) ExprReturnType {
         const value = try self.eval(expr.value);
-        self.environment.assign(expr.name, value) catch |err| {
-            return self.setLoxError(err, expr.name);
-        };
+        const maybeDist = self.locals.get(Expr{ .assign = expr });
+        if (maybeDist) |dist| {
+            self.environment.assignAt(dist, expr.name, value);
+        } else {
+            try self.globals.assign(expr.name, value);
+        }
         return value;
     }
     pub fn visitCallExpr(self: *@This(), expr: *Expr.Call) ExprReturnType {
@@ -264,6 +276,11 @@ pub const Interpreter = struct {
             .null => return false,
             else => return true,
         }
+    }
+    pub fn resolve(self: *@This(), expr: Expr, depth: usize) void {
+        self.locals.put(expr, depth) catch {
+            std.debug.panic("OOM", .{});
+        };
     }
     fn print(self: *@This(), value: Literal) void {
         const str = value.toStringAlloc(self.allocator) catch {

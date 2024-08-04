@@ -4,6 +4,7 @@ const token = @import("token.zig");
 const expr = @import("expression.zig");
 const Parser = @import("parser.zig").Parser;
 const Interpreter = @import("interpreter.zig").Interpreter;
+const Resolver = @import("resolver.zig").Resolver;
 pub const keywords = std.StaticStringMap(token.TokenType).initComptime(.{
     .{ "and", token.TokenType.AND },
     .{ "class", token.TokenType.CLASS },
@@ -35,6 +36,8 @@ pub fn runFile(allocator: std.mem.Allocator, filename: [:0]const u8) !void {
     // try token.debugTokens(tokens);
     const statements = Parser.parse(arena_allocator, tokens);
     var interpreter = Interpreter.create(arena_allocator);
+    var resolver = Resolver.create(arena_allocator, &interpreter);
+    resolver.resolveList(statements);
     interpreter.interpret(statements) catch {};
 }
 pub fn runPrompt(allocator: std.mem.Allocator) !void {
