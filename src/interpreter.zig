@@ -183,21 +183,35 @@ pub const Interpreter = struct {
         return value;
     }
     pub fn visitCallExpr(self: *@This(), expr: *Expr.Call) ExprReturnType {
-        var callee = try self.eval(expr.callee);
+        const callee = try self.eval(expr.callee);
         var arguments = std.ArrayList(Literal).init(self.allocator);
         for (expr.arguments) |arg| {
             const res = try self.eval(arg);
             try arguments.append(res);
         }
-        if (std.meta.activeTag(callee) != .callable) {
+        if (std.meta.activeTag(callee) != .callable and
+            std.meta.activeTag(callee) != .class)
+        {
             return self.setLoxError(RuntimeError.NotFnOrClass, expr.paren);
         }
-        if (arguments.items.len != callee.callable.arity()) {
-            std.log.err("Expected {d} arguments but got {d}", .{ callee.callable.arity(), arguments.items.len });
-            return self.setLoxError(RuntimeError.MismatchedArity, expr.paren);
-        }
         const slice = try arguments.toOwnedSlice();
-        return callee.callable.call(self, slice);
+        switch (callee) {
+            .callable => |c| {
+                if (arguments.items.len != c.arity()) {
+                    std.log.err("Expected {d} arguments but got {d}", .{ c.arity(), arguments.items.len });
+                    return self.setLoxError(RuntimeError.MismatchedArity, expr.paren);
+                }
+                return c.call(self, slice);
+            },
+            .class => |c| {
+                if (arguments.items.len != c.arity()) {
+                    std.log.err("Expected {d} arguments but got {d}", .{ c.arity(), arguments.items.len });
+                    return self.setLoxError(RuntimeError.MismatchedArity, expr.paren);
+                }
+                return c.call(self, slice);
+            },
+            else => unreachable,
+        }
     }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
@@ -253,7 +267,7 @@ pub const Interpreter = struct {
     }
     pub fn visitClassStmt(self: *@This(), stmt: *Stmt.Class) RuntimeError!void {
         self.environment.define(stmt.name.lexeme, Literal.null);
-        const klass = Class.create(stmt.name.lexeme);
+        const klass = try Class.create(self.allocator, stmt.name.lexeme);
         try self.environment.assign(stmt.name, Literal{ .class = klass });
     }
     pub fn visitWhileStmt(self: *@This(), stmt: *Stmt.While) RuntimeError!void {
@@ -274,6 +288,7 @@ pub const Interpreter = struct {
             .string => if (u.tagEquals(v)) std.mem.eql(u8, u.string, v.string) else return RuntimeError.ExpectingStrings,
             // TODO: fix
             .class => unreachable,
+            .instance => unreachable,
             .callable => unreachable,
         };
     }
