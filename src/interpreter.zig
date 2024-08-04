@@ -11,6 +11,7 @@ const _callable = @import("callable.zig");
 const LoxFunction = _callable.LoxFunction;
 const Callable = _callable.Callable;
 const Clock = _callable.Clock;
+const Class = @import("class.zig").Class;
 
 pub const Interpreter = struct {
     pub const ExprReturnType = RuntimeError!Literal;
@@ -250,6 +251,11 @@ pub const Interpreter = struct {
         const value = try self.eval(stmt.initializer);
         self.environment.define(stmt.name.lexeme, value);
     }
+    pub fn visitClassStmt(self: *@This(), stmt: *Stmt.Class) RuntimeError!void {
+        self.environment.define(stmt.name.lexeme, Literal.null);
+        const klass = Class.create(stmt.name.lexeme);
+        try self.environment.assign(stmt.name, Literal{ .class = klass });
+    }
     pub fn visitWhileStmt(self: *@This(), stmt: *Stmt.While) RuntimeError!void {
         while (isTruthy(try self.eval(stmt.condition))) {
             try self.execute(stmt.body);
@@ -267,6 +273,7 @@ pub const Interpreter = struct {
             .boolean => if (u.tagEquals(v)) u.boolean == v.boolean else return RuntimeError.ExpectingBooleans,
             .string => if (u.tagEquals(v)) std.mem.eql(u8, u.string, v.string) else return RuntimeError.ExpectingStrings,
             // TODO: fix
+            .class => unreachable,
             .callable => unreachable,
         };
     }

@@ -57,7 +57,20 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.VAR})) {
             return self.varDeclaration();
         }
+        if (self.match(&[_]TokenType{TokenType.CLASS})) {
+            return self.classDeclaration();
+        }
         return self.statement();
+    }
+    fn classDeclaration(self: *Parser) !*Stmt {
+        const name = try self.consume(TokenType.IDENTIFIER, "Expect class name");
+        _ = try self.consume(TokenType.LEFT_BRACE, "Expect '{{' before class body");
+        var methods = std.ArrayList(*Stmt).init(self.allocator);
+        while (!self.check(TokenType.RIGHT_BRACE) and !self.outOfBounds()) {
+            try methods.append(try self.function("method"));
+        }
+        _ = try self.consume(TokenType.RIGHT_BRACE, "Expect '}}' after class body");
+        return Stmt.Class.create(self.allocator, name, try methods.toOwnedSlice());
     }
     fn statement(self: *Parser) ParserError!*Stmt {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();

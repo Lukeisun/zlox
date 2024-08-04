@@ -66,6 +66,10 @@ pub const Resolver = struct {
         self.resolveExpr(stmt.initializer);
         self.define(stmt.name);
     }
+    pub fn visitClassStmt(self: *Resolver, stmt: *Stmt.Class) !void {
+        self.declare(stmt.name);
+        self.define(stmt.name);
+    }
     pub fn visitWhileStmt(self: *Resolver, stmt: *Stmt.While) !void {
         self.resolveExpr(stmt.condition);
         self.resolve(stmt.body);

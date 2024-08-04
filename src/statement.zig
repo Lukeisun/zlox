@@ -10,6 +10,7 @@ pub const Stmt = union(enum) {
     while_stmt: *While,
     function: *Function,
     _return: *Return,
+    class: *Class,
     pub fn accept(self: Stmt, visitor: anytype) !void {
         return switch (self) {
             .expression => |e| try visitor.visitExpressionStmt(e),
@@ -20,6 +21,7 @@ pub const Stmt = union(enum) {
             .while_stmt => |w| try visitor.visitWhileStmt(w),
             .function => |f| try visitor.visitFunctionStmt(f),
             ._return => |r| try visitor.visitReturnStmt(r),
+            .class => |c| try visitor.visitClassStmt(c),
         };
     }
     pub fn create(allocator: std.mem.Allocator, stmt_data: anytype) !*Stmt {
@@ -103,6 +105,18 @@ pub const Stmt = union(enum) {
             const _return = try allocator.create(Return);
             _return.* = .{ .keyword = keyword, .value = value };
             return Stmt.create(allocator, .{ ._return = _return });
+        }
+    };
+    pub const Class = struct {
+        name: Token,
+        methods: []*Stmt,
+        pub fn create(allocator: std.mem.Allocator, name: Token, methods: []*Stmt) !*Stmt {
+            for (methods) |method| {
+                std.debug.assert(std.meta.activeTag(method.*) == .function);
+            }
+            const class = try allocator.create(Class);
+            class.* = .{ .name = name, .methods = methods };
+            return Stmt.create(allocator, .{ .class = class });
         }
     };
 };
