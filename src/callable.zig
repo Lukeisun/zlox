@@ -5,6 +5,7 @@ const Expr = @import("expression.zig").Expr;
 const Interpreter = @import("interpreter.zig").Interpreter;
 const Environment = @import("environment.zig").Environment;
 const Stmt = @import("statement.zig").Stmt;
+const RuntimeError = @import("error.zig").RuntimeError;
 
 pub const Callable = union(enum) {
     function: *LoxFunction,
@@ -32,12 +33,19 @@ pub const LoxFunction = struct {
     declaration: *Stmt.Function,
     allocator: std.mem.Allocator,
     fn call(self: LoxFunction, interpreter: *Interpreter, arguments: []Literal) Interpreter.ExprReturnType {
-        var env = Environment.create(self.allocator);
+        var env = Environment.createWithEnv(self.allocator, interpreter.globals);
         for (self.declaration.params, 0..) |param, i| {
             env.define(param.lexeme, arguments[i]);
         }
-        try interpreter.executeBlock(self.declaration.body, &env);
-        return Literal{ .string = "test" };
+        interpreter.executeBlock(self.declaration.body, env) catch |err| {
+            if (err == RuntimeError.Return) {
+                const value = interpreter.return_value.?;
+                interpreter.return_value = null;
+                return value;
+            }
+            return err;
+        };
+        return Literal{ .null = {} };
     }
     fn arity(self: LoxFunction) usize {
         return self.declaration.params.len;

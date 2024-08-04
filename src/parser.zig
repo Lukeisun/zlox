@@ -47,8 +47,8 @@ pub const Parser = struct {
         };
     }
     fn declaration(self: *Parser) ParserError!*Stmt {
-        errdefer {
-            std.debug.print("in err defer\n", .{});
+        errdefer |err| {
+            std.debug.print("in err defer {any}\n", .{err});
             self.synchronoize();
         }
         if (self.match(&[_]TokenType{TokenType.FUN})) {
@@ -63,6 +63,7 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();
         if (self.match(&[_]TokenType{TokenType.IF})) return self.ifStatement();
         if (self.match(&[_]TokenType{TokenType.WHILE})) return self.whileStatement();
+        if (self.match(&[_]TokenType{TokenType.RETURN})) return self.returnStatement();
         if (self.match(&[_]TokenType{TokenType.FOR})) return self.forStatement();
         if (self.match(&[_]TokenType{TokenType.LEFT_BRACE})) {
             const stmt_list = try self.block();
@@ -86,6 +87,15 @@ pub const Parser = struct {
         const value = try self.expression();
         _ = try self.consume(TokenType.SEMICOLON, "Expecting ';' after expression");
         return Stmt.Print.create(self.allocator, value);
+    }
+    fn returnStatement(self: *Parser) !*Stmt {
+        const keyword = self.previous();
+        var value: ?*Expr = null;
+        if (!self.check(TokenType.SEMICOLON)) {
+            value = try self.expression();
+        }
+        _ = try self.consume(TokenType.SEMICOLON, "Expecting ';' after return value");
+        return Stmt.Return.create(self.allocator, keyword, value);
     }
     fn block(self: *Parser) ![]*Stmt {
         var statements = std.ArrayList(*Stmt).init(self.allocator);

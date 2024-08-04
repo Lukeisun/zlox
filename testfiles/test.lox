@@ -1,0 +1,7 @@
+fun loop(n) {
+	if(n>=2){ 
+	return n;
+	}
+	return loop(n+1) + loop(n+2);
+}
+print loop(0);

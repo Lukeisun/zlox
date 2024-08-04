@@ -14,11 +14,12 @@ pub const Interpreter = struct {
     pub const ExprReturnType = RuntimeError!Literal;
     repl: bool = false,
     allocator: std.mem.Allocator,
-    environment: Environment,
-    globals: Environment,
+    environment: *Environment,
+    globals: *Environment,
     // probably split this up into a differrent struct?
     had_runtime_error: bool,
     run_time_offender: ?Token,
+    return_value: ?Literal = null,
 
     pub fn create(allocator: std.mem.Allocator) Interpreter {
         var globals = Environment.create(allocator);
@@ -53,6 +54,7 @@ pub const Interpreter = struct {
                 }
             };
         }
+        std.debug.assert(self.return_value == null);
     }
     pub fn visitBinaryExpr(self: *@This(), expr: *Expr.Binary) ExprReturnType {
         const lhs = try self.eval(expr.left);
@@ -189,17 +191,17 @@ pub const Interpreter = struct {
         try stmt.accept(self);
     }
     pub fn executeBlock(self: *@This(), statements: []*Stmt, env: *Environment) !void {
-        var previous_env = self.environment;
-        env.enclosing = &previous_env;
-        self.environment = env.*;
+        const previous = self.environment;
+        errdefer self.environment = previous;
+        defer self.environment = previous;
+        self.environment = env;
         for (statements) |statement| {
             try self.execute(statement);
         }
-        self.environment = previous_env;
     }
     pub fn visitBlock(self: *@This(), stmt: *Stmt.Block) RuntimeError!void {
-        var env = Environment.create(self.allocator);
-        try self.executeBlock(stmt.statements, &env);
+        const env = Environment.createWithEnv(self.allocator, self.environment);
+        try self.executeBlock(stmt.statements, env);
     }
     pub fn visitExpressionStmt(self: *@This(), stmt: *Stmt.Expression) RuntimeError!void {
         const val = try self.eval(stmt.expression);
@@ -209,8 +211,8 @@ pub const Interpreter = struct {
     }
     pub fn visitFunctionStmt(self: *@This(), stmt: *Stmt.Function) RuntimeError!void {
         const fun = try LoxFunction.create(self.allocator, stmt);
-        const x = Literal{ .callable = try fun.callable() };
-        self.environment.define(stmt.name.lexeme, x);
+        const literal = Literal{ .callable = try fun.callable() };
+        self.environment.define(stmt.name.lexeme, literal);
     }
     pub fn visitIfStmt(self: *@This(), stmt: *Stmt.If) RuntimeError!void {
         const condition = try self.eval(stmt.condition);
@@ -223,6 +225,12 @@ pub const Interpreter = struct {
     pub fn visitPrintStmt(self: *@This(), stmt: *Stmt.Print) RuntimeError!void {
         const val = try self.eval(stmt.expression);
         self.print(val);
+    }
+    pub fn visitReturnStmt(self: *@This(), stmt: *Stmt.Return) RuntimeError!void {
+        var value = Literal{ .null = {} };
+        if (stmt.value) |val| value = try self.eval(val);
+        self.return_value = value;
+        return RuntimeError.Return;
     }
     pub fn visitVarStmt(self: *@This(), stmt: *Stmt.Var) RuntimeError!void {
         const value = try self.eval(stmt.initializer);

@@ -9,6 +9,7 @@ pub const Stmt = union(enum) {
     if_stmt: *If,
     while_stmt: *While,
     function: *Function,
+    _return: *Return,
     pub fn accept(self: Stmt, visitor: anytype) !void {
         return switch (self) {
             .expression => |e| try visitor.visitExpressionStmt(e),
@@ -18,6 +19,7 @@ pub const Stmt = union(enum) {
             .if_stmt => |i| try visitor.visitIfStmt(i),
             .while_stmt => |w| try visitor.visitWhileStmt(w),
             .function => |f| try visitor.visitFunctionStmt(f),
+            ._return => |r| try visitor.visitReturnStmt(r),
         };
     }
     pub fn create(allocator: std.mem.Allocator, stmt_data: anytype) !*Stmt {
@@ -92,6 +94,15 @@ pub const Stmt = union(enum) {
             const function = try allocator.create(Function);
             function.* = .{ .name = name, .params = params, .body = body };
             return Stmt.create(allocator, .{ .function = function });
+        }
+    };
+    pub const Return = struct {
+        keyword: Token,
+        value: ?*Expr,
+        pub fn create(allocator: std.mem.Allocator, keyword: Token, value: ?*Expr) !*Stmt {
+            const _return = try allocator.create(Return);
+            _return.* = .{ .keyword = keyword, .value = value };
+            return Stmt.create(allocator, .{ ._return = _return });
         }
     };
 };

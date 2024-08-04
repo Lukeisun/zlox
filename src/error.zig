@@ -11,6 +11,8 @@ pub const RuntimeError = error{
     OutOfMemory,
     NotFnOrClass,
     MismatchedArity,
+    // Used to signal a return value
+    Return,
 };
 
 pub const Error = struct {
