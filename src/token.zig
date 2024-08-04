@@ -62,6 +62,10 @@ pub fn debugTokens(tokens: []Token) !void {
         try t.print();
     }
 }
+// i use this is in place of Object from the book.
+// i realize now that probably should separate this
+// and create an Object/Value tagged union in the Interpreter
+// but this works for now
 pub const Literal = union(enum) {
     string: []const u8,
     number: f64,

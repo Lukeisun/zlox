@@ -1,14 +1,16 @@
 const std = @import("std");
 const Expr = @import("expression.zig").Expr;
-const Literal = @import("token.zig").Literal;
-const TokenType = @import("token.zig").TokenType;
-const Token = @import("token.zig").Token;
 const Stmt = @import("statement.zig").Stmt;
 const Environment = @import("environment.zig").Environment;
-const LoxFunction = @import("callable.zig").LoxFunction;
 const RuntimeError = @import("error.zig").RuntimeError;
-const Callable = @import("callable.zig").Callable;
-const Clock = @import("callable.zig").Clock;
+const _token = @import("token.zig");
+const Literal = _token.Literal;
+const TokenType = _token.TokenType;
+const Token = _token.Token;
+const _callable = @import("callable.zig");
+const LoxFunction = _callable.LoxFunction;
+const Callable = _callable.Callable;
+const Clock = _callable.Clock;
 
 pub const Interpreter = struct {
     pub const ExprReturnType = RuntimeError!Literal;
@@ -210,7 +212,7 @@ pub const Interpreter = struct {
         }
     }
     pub fn visitFunctionStmt(self: *@This(), stmt: *Stmt.Function) RuntimeError!void {
-        const fun = try LoxFunction.create(self.allocator, stmt);
+        const fun = try LoxFunction.create(self.allocator, stmt, self.environment);
         const literal = Literal{ .callable = try fun.callable() };
         self.environment.define(stmt.name.lexeme, literal);
     }

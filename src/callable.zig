@@ -38,9 +38,10 @@ pub const Callable = union(enum) {
 
 pub const LoxFunction = struct {
     declaration: *Stmt.Function,
+    closure: *Environment,
     allocator: std.mem.Allocator,
     fn call(self: LoxFunction, interpreter: *Interpreter, arguments: []Literal) Interpreter.ExprReturnType {
-        var env = Environment.createWithEnv(self.allocator, interpreter.globals);
+        var env = Environment.createWithEnv(self.allocator, self.closure);
         for (self.declaration.params, 0..) |param, i| {
             env.define(param.lexeme, arguments[i]);
         }
@@ -57,9 +58,9 @@ pub const LoxFunction = struct {
     fn arity(self: LoxFunction) usize {
         return self.declaration.params.len;
     }
-    pub fn create(allocator: std.mem.Allocator, declaration: *Stmt.Function) !*LoxFunction {
+    pub fn create(allocator: std.mem.Allocator, declaration: *Stmt.Function, closure: *Environment) !*LoxFunction {
         const fun = try allocator.create(LoxFunction);
-        fun.* = .{ .allocator = allocator, .declaration = declaration };
+        fun.* = .{ .allocator = allocator, .declaration = declaration, .closure = closure };
         return fun;
     }
     pub fn toString(self: *@This()) []const u8 {
