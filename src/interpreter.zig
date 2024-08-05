@@ -147,7 +147,7 @@ pub const Interpreter = struct {
     pub fn visitSetExpr(self: *@This(), expr: *Expr.Set) ExprReturnType {
         const obj = try self.eval(expr.object);
         if (obj != .instance) {
-            return RuntimeError.NonInstancePropertyAccess;
+            return self.setLoxError(RuntimeError.NonInstancePropertyAccess, expr.name);
         }
         const value = try self.eval(expr.value);
         obj.instance.set(expr.name, value);
@@ -225,9 +225,11 @@ pub const Interpreter = struct {
     pub fn visitGetExpr(self: *@This(), expr: *Expr.Get) ExprReturnType {
         const object = try self.eval(expr.object);
         if (object == .instance) {
-            return object.instance.get(expr.name);
+            return object.instance.get(expr.name) catch |err| {
+                return self.setLoxError(err, expr.name);
+            };
         }
-        return RuntimeError.NonInstancePropertyAccess;
+        return self.setLoxError(RuntimeError.NonInstancePropertyAccess, expr.name);
     }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);

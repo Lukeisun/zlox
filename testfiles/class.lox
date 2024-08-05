@@ -6,6 +6,7 @@ class DevonshireCream {
 print DevonshireCream;
 var cream = DevonshireCream();
 cream.lox = "Norwegian Lox";
+print cream.pog;
 print cream;
 print cream.lox;
 print cream.lox + "with" + cream.serveOn();
