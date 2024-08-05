@@ -11,6 +11,8 @@ pub const RuntimeError = error{
     OutOfMemory,
     NotFnOrClass,
     MismatchedArity,
+    NonInstancePropertyAccess,
+    UndefinedProperty,
     // Used to signal a return value
     Return,
 };

@@ -213,6 +213,13 @@ pub const Interpreter = struct {
             else => unreachable,
         }
     }
+    pub fn visitGetExpr(self: *@This(), expr: *Expr.Get) ExprReturnType {
+        const object = try self.eval(expr.object);
+        if (object == .instance) {
+            return object.instance.get(expr.name);
+        }
+        return RuntimeError.NonInstancePropertyAccess;
+    }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }

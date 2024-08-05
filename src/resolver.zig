@@ -88,6 +88,9 @@ pub const Resolver = struct {
             self.resolveExpr(arg);
         }
     }
+    pub fn visitGetExpr(self: *Resolver, expr: *Expr.Get) void {
+        self.resolveExpr(expr.object);
+    }
     pub fn visitGroupingExpr(self: *Resolver, expr: *Expr.Grouping) void {
         self.resolveExpr(expr.expression);
     }

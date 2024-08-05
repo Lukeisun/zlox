@@ -10,6 +10,7 @@ pub const Expr = union(enum) {
     assign: *Assign,
     logical: *Logical,
     call: *Call,
+    get: *Get,
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");
@@ -30,6 +31,7 @@ pub const Expr = union(enum) {
             "visitAssignExpr",
             "visitLogicalExpr",
             "visitCallExpr",
+            "visitGetExpr",
         };
 
         inline for (required_methods) |method| {
@@ -54,6 +56,7 @@ pub const Expr = union(enum) {
             .assign => |a| visitor.visitAssignExpr(a),
             .logical => |l| visitor.visitLogicalExpr(l),
             .call => |l| visitor.visitCallExpr(l),
+            .get => |g| visitor.visitGetExpr(g),
         };
     }
     pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
@@ -134,6 +137,15 @@ pub const Expr = union(enum) {
             const call = try allocator.create(Call);
             call.* = .{ .callee = callee, .paren = paren, .arguments = arguments };
             return Expr.create(allocator, .{ .call = call });
+        }
+    };
+    pub const Get = struct {
+        object: *Expr,
+        name: Token,
+        pub fn create(allocator: std.mem.Allocator, object: *Expr, name: Token) !*Expr {
+            const get = try allocator.create(Get);
+            get.* = .{ .object = object, .name = name };
+            return Expr.create(allocator, .{ .get = get });
         }
     };
 };

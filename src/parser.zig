@@ -316,6 +316,9 @@ pub const Parser = struct {
         while (true) {
             if (self.match(&[_]TokenType{TokenType.LEFT_PAREN})) {
                 expr = try self.finishCall(expr);
+            } else if (self.match(&[_]TokenType{TokenType.DOT})) {
+                const name = try self.consume(TokenType.IDENTIFIER, "Expect property name after '.'");
+                expr = try Expr.Get.create(self.allocator, expr, name);
             } else {
                 break;
             }
