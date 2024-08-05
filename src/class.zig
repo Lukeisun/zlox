@@ -43,4 +43,9 @@ pub const Instance = struct {
         }
         return RuntimeError.UndefinedProperty;
     }
+    pub fn set(self: *Instance, name: Token, value: Literal) void {
+        self.fields.put(name.lexeme, value) catch {
+            std.debug.panic("OOM", .{});
+        };
+    }
 };

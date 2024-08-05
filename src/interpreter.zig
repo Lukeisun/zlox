@@ -144,6 +144,15 @@ pub const Interpreter = struct {
         }
         return self.eval(expr.right);
     }
+    pub fn visitSetExpr(self: *@This(), expr: *Expr.Set) ExprReturnType {
+        const obj = try self.eval(expr.object);
+        if (obj != .instance) {
+            return RuntimeError.NonInstancePropertyAccess;
+        }
+        const value = try self.eval(expr.value);
+        obj.instance.set(expr.name, value);
+        return value;
+    }
     pub fn visitUnaryExpr(self: *@This(), expr: *Expr.Unary) ExprReturnType {
         const rhs = try self.eval(expr.expression);
         var rt_error: RuntimeError = undefined;

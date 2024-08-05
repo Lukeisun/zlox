@@ -99,6 +99,10 @@ pub const Resolver = struct {
         self.resolveExpr(expr.left);
         self.resolveExpr(expr.right);
     }
+    pub fn visitSetExpr(self: *Resolver, expr: *Expr.Set) void {
+        self.resolveExpr(expr.object);
+        self.resolveExpr(expr.value);
+    }
     pub fn visitUnaryExpr(self: *Resolver, expr: *Expr.Unary) void {
         self.resolveExpr(expr.expression);
     }

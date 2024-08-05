@@ -214,6 +214,9 @@ pub const Parser = struct {
                     const name = v.name;
                     return try Expr.Assign.create(self.allocator, name, value);
                 },
+                .get => |g| {
+                    return try Expr.Set.create(self.allocator, g.object, g.name, value);
+                },
                 else => {
                     const where = "";
                     const parse_error = Error{ .line = equals.line, .where = where, .message = "Invalid Assignment Target" };
