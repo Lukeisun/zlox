@@ -3,11 +3,16 @@ class DevonshireCream {
 		return "Scones";			
 	}
 }
+class Bacon {
+	eat() {
+		print ("Crunch, crunch, crunch!");
+	}
+}
+Bacon().eat();
 print DevonshireCream;
 var cream = DevonshireCream();
 cream.lox = "Norwegian Lox";
-print cream.pog;
 print cream;
 print cream.lox;
-print cream.lox + "with" + cream.serveOn();
+print cream.lox + " with " + cream.serveOn();
 print cream.pog;

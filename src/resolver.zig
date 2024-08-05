@@ -13,7 +13,11 @@ const _callable = @import("callable.zig");
 const LoxFunction = _callable.LoxFunction;
 const Callable = _callable.Callable;
 
-const FunctionType = enum { NONE, FUNCTION };
+const FunctionType = enum {
+    NONE,
+    FUNCTION,
+    METHOD,
+};
 // Really need to review how this actually works,
 // I sort of get it? but not really
 pub const Resolver = struct {
@@ -68,6 +72,12 @@ pub const Resolver = struct {
     }
     pub fn visitClassStmt(self: *Resolver, stmt: *Stmt.Class) !void {
         self.declare(stmt.name);
+        for (stmt.methods) |method| {
+            switch (method.*) {
+                .function => |f| self.resolveFunction(f, FunctionType.METHOD),
+                inline else => unreachable,
+            }
+        }
         self.define(stmt.name);
     }
     pub fn visitWhileStmt(self: *Resolver, stmt: *Stmt.While) !void {

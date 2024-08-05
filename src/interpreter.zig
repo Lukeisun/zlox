@@ -285,7 +285,18 @@ pub const Interpreter = struct {
     }
     pub fn visitClassStmt(self: *@This(), stmt: *Stmt.Class) RuntimeError!void {
         self.environment.define(stmt.name.lexeme, Literal.null);
-        const klass = try Class.create(self.allocator, stmt.name.lexeme);
+        var methods = std.StringHashMap(*Callable).init(self.allocator);
+        for (stmt.methods) |method| {
+            switch (method.*) {
+                .function => |f| {
+                    const function = try LoxFunction.create(self.allocator, f, self.environment);
+                    const callable = try function.callable();
+                    try methods.put(f.name.lexeme, callable);
+                },
+                inline else => unreachable,
+            }
+        }
+        const klass = try Class.create(self.allocator, stmt.name.lexeme, methods);
         try self.environment.assign(stmt.name, Literal{ .class = klass });
     }
     pub fn visitWhileStmt(self: *@This(), stmt: *Stmt.While) RuntimeError!void {
