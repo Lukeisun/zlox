@@ -1,0 +1,9 @@
+class Cake {
+	taste() {
+		var adj = "delicious";
+		print "The " + this.flavor + " cake is " + adj + "!";
+	}
+}
+var cake = Cake();
+cake.flavor = "German Chocolate";
+cake.taste();

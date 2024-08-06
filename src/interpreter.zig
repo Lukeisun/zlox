@@ -231,6 +231,9 @@ pub const Interpreter = struct {
         }
         return self.setLoxError(RuntimeError.NonInstancePropertyAccess, expr.name);
     }
+    pub fn visitThisExpr(self: *@This(), expr: *Expr.This) ExprReturnType {
+        return self.lookUpVariable(expr.keyword, Expr{ .this = expr });
+    }
     fn eval(self: *@This(), expr: *Expr) ExprReturnType {
         return expr.accept(self);
     }

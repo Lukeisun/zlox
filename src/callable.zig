@@ -6,6 +6,7 @@ const Interpreter = @import("interpreter.zig").Interpreter;
 const Environment = @import("environment.zig").Environment;
 const Stmt = @import("statement.zig").Stmt;
 const RuntimeError = @import("error.zig").RuntimeError;
+const Instance = @import("class.zig").Instance;
 
 pub const Callable = union(enum) {
     function: *LoxFunction,
@@ -57,6 +58,17 @@ pub const LoxFunction = struct {
     }
     fn arity(self: LoxFunction) usize {
         return self.declaration.params.len;
+    }
+    pub fn bind(self: LoxFunction, instance: *Instance) Literal {
+        const env = Environment.create(self.allocator);
+        env.define("this", Literal{ .instance = instance });
+        const lf = LoxFunction.create(self.allocator, self.declaration, env) catch {
+            std.debug.panic("OOM", .{});
+        };
+        const _callable = lf.callable() catch {
+            std.debug.panic("OOM", .{});
+        };
+        return Literal{ .callable = _callable };
     }
     pub fn create(allocator: std.mem.Allocator, declaration: *Stmt.Function, closure: *Environment) !*LoxFunction {
         const fun = try allocator.create(LoxFunction);

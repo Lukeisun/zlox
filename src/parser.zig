@@ -332,6 +332,7 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.FALSE})) return try Expr.Literal.create(self.allocator, Literal{ .boolean = false });
         if (self.match(&[_]TokenType{TokenType.TRUE})) return try Expr.Literal.create(self.allocator, Literal{ .boolean = true });
         if (self.match(&[_]TokenType{TokenType.NIL})) return try Expr.Literal.create(self.allocator, Literal{ .null = {} });
+        if (self.match(&[_]TokenType{TokenType.THIS})) return try Expr.This.create(self.allocator, self.previous());
         if (self.match(&[_]TokenType{TokenType.IDENTIFIER})) {
             return try Expr.Variable.create(self.allocator, self.previous());
         }

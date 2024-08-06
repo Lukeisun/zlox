@@ -72,13 +72,18 @@ pub const Resolver = struct {
     }
     pub fn visitClassStmt(self: *Resolver, stmt: *Stmt.Class) !void {
         self.declare(stmt.name);
+        self.define(stmt.name);
+        self.beginScope();
+        self.scopes.getLast().put("this", true) catch {
+            std.debug.panic("OOM", .{});
+        };
         for (stmt.methods) |method| {
             switch (method.*) {
                 .function => |f| self.resolveFunction(f, FunctionType.METHOD),
                 inline else => unreachable,
             }
         }
-        self.define(stmt.name);
+        self.endScope();
     }
     pub fn visitWhileStmt(self: *Resolver, stmt: *Stmt.While) !void {
         self.resolveExpr(stmt.condition);
@@ -127,6 +132,9 @@ pub const Resolver = struct {
             }
         }
         self.resolveLocal(Expr{ .variable = expr }, expr.name);
+    }
+    pub fn visitThisExpr(self: *Resolver, expr: *Expr.This) void {
+        self.resolveLocal(.{ .this = expr }, expr.keyword);
     }
     pub fn resolveList(self: *Resolver, stmts: []*Stmt) void {
         for (stmts) |stmt| {

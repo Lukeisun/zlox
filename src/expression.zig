@@ -12,6 +12,9 @@ pub const Expr = union(enum) {
     call: *Call,
     get: *Get,
     set: *Set,
+    this: *This,
+    // Don't need this since the zig compiler checks this stuff anyhow.
+    // But leaving it in for uh, memories!
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
         if (@typeInfo(V) != .Struct) {
             @compileError("Expecting struct");
@@ -59,6 +62,7 @@ pub const Expr = union(enum) {
             .call => |l| visitor.visitCallExpr(l),
             .get => |g| visitor.visitGetExpr(g),
             .set => |s| visitor.visitSetExpr(s),
+            .this => |t| visitor.visitThisExpr(t),
         };
     }
     pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
@@ -158,6 +162,14 @@ pub const Expr = union(enum) {
             const set = try allocator.create(Set);
             set.* = .{ .object = object, .name = name, .value = value };
             return Expr.create(allocator, .{ .set = set });
+        }
+    };
+    pub const This = struct {
+        keyword: Token,
+        pub fn create(allocator: std.mem.Allocator, keyword: Token) !*Expr {
+            const this = try allocator.create(This);
+            this.* = .{ .keyword = keyword };
+            return Expr.create(allocator, .{ .this = this });
         }
     };
 };
