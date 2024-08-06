@@ -41,6 +41,7 @@ pub const LoxFunction = struct {
     declaration: *Stmt.Function,
     closure: *Environment,
     allocator: std.mem.Allocator,
+    initializer: bool = false,
     fn call(self: LoxFunction, interpreter: *Interpreter, arguments: []Literal) Interpreter.ExprReturnType {
         var env = Environment.createWithEnv(self.allocator, self.closure);
         for (self.declaration.params, 0..) |param, i| {
@@ -48,21 +49,23 @@ pub const LoxFunction = struct {
         }
         interpreter.executeBlock(self.declaration.body, env) catch |err| {
             if (err == RuntimeError.Return) {
+                if (self.initializer) return self.closure.getAt(0, "this");
                 const value = interpreter.return_value.?;
                 interpreter.return_value = null;
                 return value;
             }
             return err;
         };
+        if (self.initializer) return self.closure.getAt(0, "this");
         return Literal{ .null = {} };
     }
-    fn arity(self: LoxFunction) usize {
+    pub fn arity(self: LoxFunction) usize {
         return self.declaration.params.len;
     }
     pub fn bind(self: LoxFunction, instance: *Instance) Literal {
         const env = Environment.create(self.allocator);
         env.define("this", Literal{ .instance = instance });
-        const lf = LoxFunction.create(self.allocator, self.declaration, env) catch {
+        const lf = LoxFunction.create(self.allocator, self.declaration, env, self.initializer) catch {
             std.debug.panic("OOM", .{});
         };
         const _callable = lf.callable() catch {
@@ -70,9 +73,9 @@ pub const LoxFunction = struct {
         };
         return Literal{ .callable = _callable };
     }
-    pub fn create(allocator: std.mem.Allocator, declaration: *Stmt.Function, closure: *Environment) !*LoxFunction {
+    pub fn create(allocator: std.mem.Allocator, declaration: *Stmt.Function, closure: *Environment, initializer: bool) !*LoxFunction {
         const fun = try allocator.create(LoxFunction);
-        fun.* = .{ .allocator = allocator, .declaration = declaration, .closure = closure };
+        fun.* = .{ .allocator = allocator, .declaration = declaration, .closure = closure, .initializer = initializer };
         return fun;
     }
     pub fn toString(self: *@This()) []const u8 {

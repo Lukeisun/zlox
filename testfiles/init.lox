@@ -1,0 +1,11 @@
+class Chocolate {
+	init(taste) {
+		this.taste = taste;
+	}
+	show() {
+		print "This chocolate is " + this.taste + "!";
+	}
+}
+
+var c = Chocolate("Spicy");
+c.show();

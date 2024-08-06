@@ -23,11 +23,19 @@ pub const Class = struct {
     pub fn findMethod(self: Class, name: []const u8) ?*Callable {
         return self.methods.get(name);
     }
-    pub fn call(self: Class, _: *Interpreter, _: []Literal) ExprReturnType {
+    pub fn call(self: Class, interpreter: *Interpreter, arguments: []Literal) ExprReturnType {
         const instance = try Instance.create(self.allocator, self);
+        const initializer = self.findMethod("init");
+        if (initializer) |i| {
+            _ = try i.function.bind(instance).callable.call(interpreter, arguments);
+        }
         return Literal{ .instance = instance };
     }
-    pub fn arity(_: Class) usize {
+    pub fn arity(self: Class) usize {
+        const initializer = self.findMethod("init");
+        if (initializer) |i| {
+            return i.function.arity();
+        }
         return 0;
     }
 };

@@ -17,6 +17,7 @@ const FunctionType = enum {
     NONE,
     FUNCTION,
     METHOD,
+    INITIALIZER,
 };
 const ClassType = enum { NONE, CLASS };
 // Really need to review how this actually works,
@@ -66,6 +67,12 @@ pub const Resolver = struct {
             const resolve_error = Error{ .line = stmt.keyword.line, .where = where, .message = "Can't return from top level code" };
             resolve_error.report();
         }
+        if (self.currentFunction == FunctionType.INITIALIZER) {
+            self.had_error = true;
+            const where = "";
+            const resolve_error = Error{ .line = stmt.keyword.line, .where = where, .message = "Can't return value from initializer" };
+            resolve_error.report();
+        }
         if (stmt.value) |value| self.resolveExpr(value);
     }
     pub fn visitVarStmt(self: *Resolver, stmt: *Stmt.Var) !void {
@@ -84,7 +91,10 @@ pub const Resolver = struct {
         };
         for (stmt.methods) |method| {
             switch (method.*) {
-                .function => |f| self.resolveFunction(f, FunctionType.METHOD),
+                .function => |f| {
+                    const decl = if (std.mem.eql(u8, f.name.lexeme, "init")) FunctionType.INITIALIZER else FunctionType.METHOD;
+                    self.resolveFunction(f, decl);
+                },
                 inline else => unreachable,
             }
         }

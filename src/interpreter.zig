@@ -206,15 +206,15 @@ pub const Interpreter = struct {
         const slice = try arguments.toOwnedSlice();
         switch (callee) {
             .callable => |c| {
-                if (arguments.items.len != c.arity()) {
-                    std.log.err("Expected {d} arguments but got {d}", .{ c.arity(), arguments.items.len });
+                if (slice.len != c.arity()) {
+                    std.log.err("Expected {d} arguments but got {d}", .{ c.arity(), slice.len });
                     return self.setLoxError(RuntimeError.MismatchedArity, expr.paren);
                 }
                 return c.call(self, slice);
             },
             .class => |c| {
-                if (arguments.items.len != c.arity()) {
-                    std.log.err("Expected {d} arguments but got {d}", .{ c.arity(), arguments.items.len });
+                if (slice.len != c.arity()) {
+                    std.log.err("Expected {d} arguments but got {d}", .{ c.arity(), slice.len });
                     return self.setLoxError(RuntimeError.MismatchedArity, expr.paren);
                 }
                 return c.call(self, slice);
@@ -260,7 +260,7 @@ pub const Interpreter = struct {
         }
     }
     pub fn visitFunctionStmt(self: *@This(), stmt: *Stmt.Function) RuntimeError!void {
-        const fun = try LoxFunction.create(self.allocator, stmt, self.environment);
+        const fun = try LoxFunction.create(self.allocator, stmt, self.environment, false);
         const literal = Literal{ .callable = try fun.callable() };
         self.environment.define(stmt.name.lexeme, literal);
     }
@@ -292,7 +292,7 @@ pub const Interpreter = struct {
         for (stmt.methods) |method| {
             switch (method.*) {
                 .function => |f| {
-                    const function = try LoxFunction.create(self.allocator, f, self.environment);
+                    const function = try LoxFunction.create(self.allocator, f, self.environment, std.mem.eql(u8, f.name.lexeme, "init"));
                     const callable = try function.callable();
                     try methods.put(f.name.lexeme, callable);
                 },
