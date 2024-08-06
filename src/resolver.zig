@@ -18,15 +18,18 @@ const FunctionType = enum {
     FUNCTION,
     METHOD,
 };
+const ClassType = enum { NONE, CLASS };
 // Really need to review how this actually works,
 // I sort of get it? but not really
 pub const Resolver = struct {
     pub const ExprReturnType = void;
     interpreter: *Interpreter,
     scopes: std.ArrayList(*std.StringHashMap(bool)),
+    currentClass: ClassType = ClassType.NONE,
     currentFunction: FunctionType = FunctionType.NONE,
     allocator: std.mem.Allocator,
     had_error: bool = false,
+
     pub fn create(allocator: std.mem.Allocator, interpreter: *Interpreter) Resolver {
         const scopes = std.ArrayList(*std.StringHashMap(bool)).init(allocator);
         return .{
@@ -71,6 +74,8 @@ pub const Resolver = struct {
         self.define(stmt.name);
     }
     pub fn visitClassStmt(self: *Resolver, stmt: *Stmt.Class) !void {
+        const enclosingClass = self.currentClass;
+        self.currentClass = ClassType.CLASS;
         self.declare(stmt.name);
         self.define(stmt.name);
         self.beginScope();
@@ -83,6 +88,7 @@ pub const Resolver = struct {
                 inline else => unreachable,
             }
         }
+        self.currentClass = enclosingClass;
         self.endScope();
     }
     pub fn visitWhileStmt(self: *Resolver, stmt: *Stmt.While) !void {
@@ -134,6 +140,12 @@ pub const Resolver = struct {
         self.resolveLocal(Expr{ .variable = expr }, expr.name);
     }
     pub fn visitThisExpr(self: *Resolver, expr: *Expr.This) void {
+        if (self.currentClass == ClassType.NONE) {
+            self.had_error = true;
+            const where = "";
+            const resolve_error = Error{ .line = expr.keyword.line, .where = where, .message = "Can't use 'this' outside of a class" };
+            resolve_error.report();
+        }
         self.resolveLocal(.{ .this = expr }, expr.keyword);
     }
     pub fn resolveList(self: *Resolver, stmts: []*Stmt) void {
