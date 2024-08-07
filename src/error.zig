@@ -13,6 +13,7 @@ pub const RuntimeError = error{
     MismatchedArity,
     NonInstancePropertyAccess,
     UndefinedProperty,
+    SuperClassMustBeClass,
     // Used to signal a return value
     Return,
 };

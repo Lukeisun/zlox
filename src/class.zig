@@ -12,16 +12,23 @@ pub const Class = struct {
     name: []const u8,
     allocator: std.mem.Allocator,
     methods: std.StringHashMap(*Callable),
-    pub fn create(allocator: std.mem.Allocator, name: []const u8, methods: std.StringHashMap(*Callable)) !*Class {
+    superclass: ?Literal,
+    pub fn create(allocator: std.mem.Allocator, name: []const u8, methods: std.StringHashMap(*Callable), superclass: ?Literal) !*Class {
         const klass = try allocator.create(Class);
-        klass.* = .{ .name = name, .allocator = allocator, .methods = methods };
+        klass.* = .{ .name = name, .allocator = allocator, .methods = methods, .superclass = superclass };
         return klass;
     }
     pub fn toString(self: Class) []const u8 {
         return self.name;
     }
     pub fn findMethod(self: Class, name: []const u8) ?*Callable {
-        return self.methods.get(name);
+        if (self.methods.get(name)) |ret| {
+            return ret;
+        }
+        if (self.superclass) |superclass| {
+            return superclass.class.findMethod(name);
+        }
+        return null;
     }
     pub fn call(self: Class, interpreter: *Interpreter, arguments: []Literal) ExprReturnType {
         const instance = try Instance.create(self.allocator, self);

@@ -85,6 +85,21 @@ pub const Resolver = struct {
         self.currentClass = ClassType.CLASS;
         self.declare(stmt.name);
         self.define(stmt.name);
+        if (stmt.superclass) |_| {
+            if (std.mem.eql(u8, stmt.superclass.?.variable.name.lexeme, stmt.name.lexeme)) {
+                self.had_error = true;
+                const where = "";
+                const resolve_error = Error{ .line = stmt.name.line, .where = where, .message = "Class can't inhereit from itself" };
+                resolve_error.report();
+            }
+        }
+        if (stmt.superclass) |s| {
+            self.resolveExpr(s);
+            self.beginScope();
+            self.scopes.getLast().put("super", true) catch {
+                std.debug.panic("OOM", .{});
+            };
+        }
         self.beginScope();
         self.scopes.getLast().put("this", true) catch {
             std.debug.panic("OOM", .{});
@@ -98,8 +113,11 @@ pub const Resolver = struct {
                 inline else => unreachable,
             }
         }
-        self.currentClass = enclosingClass;
         self.endScope();
+        if (stmt.superclass) |_| {
+            self.endScope();
+        }
+        self.currentClass = enclosingClass;
     }
     pub fn visitWhileStmt(self: *Resolver, stmt: *Stmt.While) !void {
         self.resolveExpr(stmt.condition);
@@ -133,6 +151,9 @@ pub const Resolver = struct {
     pub fn visitSetExpr(self: *Resolver, expr: *Expr.Set) void {
         self.resolveExpr(expr.object);
         self.resolveExpr(expr.value);
+    }
+    pub fn visitSuperExpr(self: *Resolver, expr: *Expr.Super) void {
+        self.resolveLocal(Expr{ .super = expr }, expr.keyword);
     }
     pub fn visitUnaryExpr(self: *Resolver, expr: *Expr.Unary) void {
         self.resolveExpr(expr.expression);

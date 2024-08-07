@@ -1,0 +1,13 @@
+class Doughnut {
+	cook() {
+		print "Fry Until Golden Brown.";
+	}
+}
+class BostonCream < Doughnut {
+	cook() {
+		super.cook();
+		print "Fry Until Golden Brown.";
+	}
+}
+var x = 1;
+BostonCream().cook();

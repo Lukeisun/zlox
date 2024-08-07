@@ -13,6 +13,7 @@ pub const Expr = union(enum) {
     get: *Get,
     set: *Set,
     this: *This,
+    super: *Super,
     // Don't need this since the zig compiler checks this stuff anyhow.
     // But leaving it in for uh, memories!
     pub fn checkVisitorAndExprReturnType(comptime V: anytype) type {
@@ -63,6 +64,7 @@ pub const Expr = union(enum) {
             .get => |g| visitor.visitGetExpr(g),
             .set => |s| visitor.visitSetExpr(s),
             .this => |t| visitor.visitThisExpr(t),
+            .super => |s| visitor.visitSuperExpr(s),
         };
     }
     pub fn create(allocator: std.mem.Allocator, expr_data: anytype) !*Expr {
@@ -170,6 +172,15 @@ pub const Expr = union(enum) {
             const this = try allocator.create(This);
             this.* = .{ .keyword = keyword };
             return Expr.create(allocator, .{ .this = this });
+        }
+    };
+    pub const Super = struct {
+        keyword: Token,
+        method: Token,
+        pub fn create(allocator: std.mem.Allocator, keyword: Token, method: Token) !*Expr {
+            const super = try allocator.create(Super);
+            super.* = .{ .keyword = keyword, .method = method };
+            return Expr.create(allocator, .{ .super = super });
         }
     };
 };

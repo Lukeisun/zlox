@@ -1,0 +1,3 @@
+var lol = "cant do this";
+class LOL < lol {
+}

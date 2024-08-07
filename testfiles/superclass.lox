@@ -1,0 +1,20 @@
+
+class Sandwich {
+	init() {
+		this.bread = "bread";
+	}
+	show() {
+		print this.bread;
+	}
+}
+class Hamburger < Sandwich { init() { this.bread = "seasame bun";} }
+Hamburger().show();
+Sandwich().show();
+
+class Doughnut {
+	cook() { 
+		print "Fry until golden brown";
+	}
+}
+class BostonCream < Doughnut {}
+ BostonCream().cook();

@@ -110,12 +110,13 @@ pub const Stmt = union(enum) {
     pub const Class = struct {
         name: Token,
         methods: []*Stmt,
-        pub fn create(allocator: std.mem.Allocator, name: Token, methods: []*Stmt) !*Stmt {
+        superclass: ?*Expr,
+        pub fn create(allocator: std.mem.Allocator, name: Token, methods: []*Stmt, superclass: ?*Expr) !*Stmt {
             for (methods) |method| {
                 std.debug.assert(std.meta.activeTag(method.*) == .function);
             }
             const class = try allocator.create(Class);
-            class.* = .{ .name = name, .methods = methods };
+            class.* = .{ .name = name, .methods = methods, .superclass = superclass };
             return Stmt.create(allocator, .{ .class = class });
         }
     };

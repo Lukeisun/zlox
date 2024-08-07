@@ -153,6 +153,21 @@ pub const Interpreter = struct {
         obj.instance.set(expr.name, value);
         return value;
     }
+    pub fn visitSuperExpr(self: *@This(), expr: *Expr.Super) ExprReturnType {
+        var it = self.locals.iterator();
+        while (it.next()) |i| {
+            std.debug.print("KEY: {any}\n\t VALUE:{any}\n", .{ i.key_ptr.*, i.value_ptr.* });
+        }
+        std.debug.print("{d}", .{self.environment.map.count()});
+        const dist = self.locals.get(Expr{ .super = expr }).?;
+        const superclass = self.environment.getAt(dist, "super");
+        const object = self.environment.getAt(dist - 1, "this");
+        const method = superclass.class.findMethod(expr.method.lexeme);
+        if (method == null) {
+            return self.setLoxError(RuntimeError.UndefinedProperty, expr.keyword);
+        }
+        return method.?.function.bind(object.instance);
+    }
     pub fn visitUnaryExpr(self: *@This(), expr: *Expr.Unary) ExprReturnType {
         const rhs = try self.eval(expr.expression);
         var rt_error: RuntimeError = undefined;
@@ -242,12 +257,11 @@ pub const Interpreter = struct {
     }
     pub fn executeBlock(self: *@This(), statements: []*Stmt, env: *Environment) !void {
         const previous = self.environment;
-        errdefer self.environment = previous;
-        defer self.environment = previous;
         self.environment = env;
         for (statements) |statement| {
             try self.execute(statement);
         }
+        self.environment = previous;
     }
     pub fn visitBlock(self: *@This(), stmt: *Stmt.Block) RuntimeError!void {
         const env = Environment.createWithEnv(self.allocator, self.environment);
@@ -287,7 +301,19 @@ pub const Interpreter = struct {
         self.environment.define(stmt.name.lexeme, value);
     }
     pub fn visitClassStmt(self: *@This(), stmt: *Stmt.Class) RuntimeError!void {
+        var superclass: ?Literal = null;
+        if (stmt.superclass) |s| {
+            superclass = try self.eval(s);
+            if (superclass.? != .class) {
+                return self.setLoxError(RuntimeError.SuperClassMustBeClass, stmt.name);
+            }
+        }
         self.environment.define(stmt.name.lexeme, Literal.null);
+
+        if (stmt.superclass) |_| {
+            self.environment = Environment.createWithEnv(self.allocator, self.environment);
+            self.environment.define("super", superclass.?);
+        }
         var methods = std.StringHashMap(*Callable).init(self.allocator);
         for (stmt.methods) |method| {
             switch (method.*) {
@@ -299,7 +325,10 @@ pub const Interpreter = struct {
                 inline else => unreachable,
             }
         }
-        const klass = try Class.create(self.allocator, stmt.name.lexeme, methods);
+        if (stmt.superclass) |_| {
+            self.environment = self.environment.enclosing.?;
+        }
+        const klass = try Class.create(self.allocator, stmt.name.lexeme, methods, superclass);
         try self.environment.assign(stmt.name, Literal{ .class = klass });
     }
     pub fn visitWhileStmt(self: *@This(), stmt: *Stmt.While) RuntimeError!void {

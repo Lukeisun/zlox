@@ -64,13 +64,18 @@ pub const Parser = struct {
     }
     fn classDeclaration(self: *Parser) !*Stmt {
         const name = try self.consume(TokenType.IDENTIFIER, "Expect class name");
+        var superclass: ?*Expr = null;
+        if (self.match(&[_]TokenType{TokenType.LESS})) {
+            _ = try self.consume(TokenType.IDENTIFIER, "Expect super class name.");
+            superclass = try Expr.Variable.create(self.allocator, self.previous());
+        }
         _ = try self.consume(TokenType.LEFT_BRACE, "Expect '{{' before class body");
         var methods = std.ArrayList(*Stmt).init(self.allocator);
         while (!self.check(TokenType.RIGHT_BRACE) and !self.outOfBounds()) {
             try methods.append(try self.function("method"));
         }
         _ = try self.consume(TokenType.RIGHT_BRACE, "Expect '}}' after class body");
-        return Stmt.Class.create(self.allocator, name, try methods.toOwnedSlice());
+        return Stmt.Class.create(self.allocator, name, try methods.toOwnedSlice(), superclass);
     }
     fn statement(self: *Parser) ParserError!*Stmt {
         if (self.match(&[_]TokenType{TokenType.PRINT})) return self.printStatement();
@@ -333,6 +338,12 @@ pub const Parser = struct {
         if (self.match(&[_]TokenType{TokenType.TRUE})) return try Expr.Literal.create(self.allocator, Literal{ .boolean = true });
         if (self.match(&[_]TokenType{TokenType.NIL})) return try Expr.Literal.create(self.allocator, Literal{ .null = {} });
         if (self.match(&[_]TokenType{TokenType.THIS})) return try Expr.This.create(self.allocator, self.previous());
+        if (self.match(&[_]TokenType{TokenType.SUPER})) {
+            const kw = self.previous();
+            _ = try self.consume(TokenType.DOT, "Expect . after super");
+            const method = try self.consume(TokenType.IDENTIFIER, "Expect super class method name");
+            return try Expr.Super.create(self.allocator, kw, method);
+        }
         if (self.match(&[_]TokenType{TokenType.IDENTIFIER})) {
             return try Expr.Variable.create(self.allocator, self.previous());
         }
