@@ -11,3 +11,9 @@ After a while I kinda got in the groove of it though and it aktually works!
 Isn't that awesome?
 
 So if you're looking at this for reference, maybe you shouldn't or do whatever; it's your life.
+
+> [!NOTE]
+> I did not properly implement super (I failed), so the last 5 or so pages are not implemented right.
+> I suspect it was me not really being careful with pointers. Maybe in the future I will rewrite this
+> because truthfully that is what this needs.
+> Bytecode time!
